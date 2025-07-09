@@ -46,15 +46,15 @@ func (r *Reconciler) createOrUpdateEnvelopeCRWorkObj(
 	manifests, err := extractManifestsFromEnvelopeCR(envelopeReader)
 	if err != nil {
 		klog.ErrorS(err, "Failed to extract manifests from the envelope spec",
-			"clusterResourceBinding", klog.KObj(resourceBinding),
-			"clusterResourceSnapshot", klog.KObj(resourceBinding),
+			"resourceBinding", klog.KObj(resourceBinding),
+			"resourceSnapshot", klog.KObj(resourceSnapshot),
 			"envelope", envelopeReader.GetEnvelopeObjRef())
 		return nil, err
 	}
 	klog.V(2).InfoS("Successfully extracted wrapped manifests from the envelope",
 		"numOfResources", len(manifests),
-		"clusterResourceBinding", klog.KObj(resourceBinding),
-		"clusterResourceSnapshot", klog.KObj(resourceSnapshot),
+		"resourceBinding", klog.KObj(resourceBinding),
+		"resourceSnapshot", klog.KObj(resourceSnapshot),
 		"envelope", envelopeReader.GetEnvelopeObjRef())
 
 	// Check to see if a corresponding work object has been created for the envelope.
@@ -68,8 +68,8 @@ func (r *Reconciler) createOrUpdateEnvelopeCRWorkObj(
 	workList := &fleetv1beta1.WorkList{}
 	if err = r.Client.List(ctx, workList, labelMatcher); err != nil {
 		klog.ErrorS(err, "Failed to list work objects when finding the work object for an envelope",
-			"clusterResourceBinding", klog.KObj(resourceBinding),
-			"clusterResourceSnapshot", klog.KObj(resourceSnapshot),
+			"resourceBinding", klog.KObj(resourceBinding),
+			"resourceSnapshot", klog.KObj(resourceSnapshot),
 			"envelope", envelopeReader.GetEnvelopeObjRef())
 		wrappedErr := fmt.Errorf("failed to list work objects when finding the work object for an envelope %v: %w", envelopeReader.GetEnvelopeObjRef(), err)
 		return nil, controller.NewAPIServerError(true, wrappedErr)
@@ -81,23 +81,23 @@ func (r *Reconciler) createOrUpdateEnvelopeCRWorkObj(
 		// Multiple matching work objects found; this should never occur under normal conditions.
 		wrappedErr := fmt.Errorf("%d work objects found for the same envelope %v, only one expected", len(workList.Items), envelopeReader.GetEnvelopeObjRef())
 		klog.ErrorS(wrappedErr, "Failed to create or update work object for envelope",
-			"clusterResourceBinding", klog.KObj(resourceBinding),
-			"clusterResourceSnapshot", klog.KObj(resourceSnapshot),
+			"resourceBinding", klog.KObj(resourceBinding),
+			"resourceSnapshot", klog.KObj(resourceSnapshot),
 			"envelope", envelopeReader.GetEnvelopeObjRef())
 		return nil, controller.NewUnexpectedBehaviorError(wrappedErr)
 	case len(workList.Items) == 1:
 		klog.V(2).InfoS("Found existing work object for the envelope; updating it",
 			"work", klog.KObj(&workList.Items[0]),
-			"clusterResourceBinding", klog.KObj(resourceBinding),
-			"clusterResourceSnapshot", klog.KObj(resourceSnapshot),
+			"resourceBinding", klog.KObj(resourceBinding),
+			"resourceSnapshot", klog.KObj(resourceSnapshot),
 			"envelope", envelopeReader.GetEnvelopeObjRef())
 		work = &workList.Items[0]
 		refreshWorkForEnvelopeCR(work, resourceBinding, resourceSnapshot, manifests, resourceOverrideSnapshotHash, clusterResourceOverrideSnapshotHash)
 	case len(workList.Items) == 0:
 		// No matching work object found; create a new one.
 		klog.V(2).InfoS("No existing work object found for the envelope; creating a new one",
-			"clusterResourceBinding", klog.KObj(resourceBinding),
-			"clusterResourceSnapshot", klog.KObj(resourceSnapshot),
+			"resourceBinding", klog.KObj(resourceBinding),
+			"resourceSnapshot", klog.KObj(resourceSnapshot),
 			"envelope", envelopeReader.GetEnvelopeObjRef())
 		work = buildNewWorkForEnvelopeCR(workNamePrefix, resourceBinding, resourceSnapshot, envelopeReader, manifests, resourceOverrideSnapshotHash, clusterResourceOverrideSnapshotHash)
 	}

@@ -234,6 +234,11 @@ func TestGetPlacementNameFromKey(t *testing.T) {
 			expectedErr:  ErrUnexpectedBehavior,
 		},
 		{
+			name:         "invalid placement key with two separators together",
+			placementKey: queue.PlacementKey("test-ns//extra"),
+			expectedErr:  ErrUnexpectedBehavior,
+		},
+		{
 			name:         "invalid placement key with only separator",
 			placementKey: queue.PlacementKey("/"),
 			expectedErr:  ErrUnexpectedBehavior,

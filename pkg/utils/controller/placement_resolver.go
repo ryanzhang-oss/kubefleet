@@ -67,7 +67,7 @@ func FetchPlacementFromKey(ctx context.Context, c client.Reader, placementKey qu
 }
 
 // GetPlacementKeyFromObj generates a PlacementKey from a placement object.
-func GetPlacementKeyFromObj(obj fleetv1beta1.PlacementObj) queue.PlacementKey {
+func GetPlacementKeyFromObj(obj client.Object) queue.PlacementKey {
 	if obj.GetNamespace() == "" {
 		// Cluster-scoped placement
 		return queue.PlacementKey(obj.GetName())
