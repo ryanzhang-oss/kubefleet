@@ -194,7 +194,7 @@ func TestGetPlacementKeyFromObj(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			key := GetPlacementKeyFromObj(tt.placement)
+			key := GetObjectKeyFromObj(tt.placement)
 			if key != tt.wantKey {
 				t.Errorf("GetPlacementKeyFromObj() = %v, want %v", key, tt.wantKey)
 			}

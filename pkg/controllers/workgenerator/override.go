@@ -36,6 +36,7 @@ import (
 	"github.com/kubefleet-dev/kubefleet/pkg/utils/overrider"
 )
 
+// TODO: combine the following two functions into one, as they are very similar.
 func (r *Reconciler) fetchClusterResourceOverrideSnapshots(ctx context.Context, resourceBinding placementv1beta1.BindingObj) (map[placementv1beta1.ResourceIdentifier][]*placementv1alpha1.ClusterResourceOverrideSnapshot, error) {
 	croMap := make(map[placementv1beta1.ResourceIdentifier][]*placementv1alpha1.ClusterResourceOverrideSnapshot)
 
@@ -49,7 +50,7 @@ func (r *Reconciler) fetchClusterResourceOverrideSnapshots(ctx context.Context, 
 				// It could be caused by that the user updates the override too frequently and the snapshot has been replaced
 				// by the new one.
 				// TODO: support customized revision history limit
-				return nil, controller.NewUserError(fmt.Errorf("clusterResourceSnapshot %s is not found", name))
+				return nil, controller.NewUserError(fmt.Errorf("clusterResourceOverrideSnapshot %s is not found", name))
 			}
 			klog.ErrorS(err, "Failed to get the clusterResourceOverrideSnapshot",
 				"binding", klog.KObj(resourceBinding), "clusterResourceOverrideSnapshot", name)
@@ -83,7 +84,7 @@ func (r *Reconciler) fetchResourceOverrideSnapshots(ctx context.Context, resourc
 				// by the new one.
 				// TODO: support customized revision history limit
 				klog.ErrorS(err, "The resourceOverrideSnapshot is deleted", "binding", klog.KObj(resourceBinding), "resourceOverrideSnapshot", namespacedName)
-				return nil, controller.NewUserError(fmt.Errorf("resourceSnapshot %s is not found", namespacedName))
+				return nil, controller.NewUserError(fmt.Errorf("resourceOverrideSnapshot %s is not found", namespacedName))
 			}
 			klog.ErrorS(err, "Failed to get the resourceOverrideSnapshot",
 				"binding", klog.KObj(resourceBinding), "resourceOverrideSnapshot", namespacedName)

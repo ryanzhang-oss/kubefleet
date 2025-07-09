@@ -27,10 +27,10 @@ import (
 	"github.com/kubefleet-dev/kubefleet/pkg/scheduler/queue"
 )
 
-// FetchBindingFromKey resolves a PlacementKey to a concrete binding object that implements BindingObj.
-func FetchBindingFromKey(ctx context.Context, c client.Reader, placementKey queue.PlacementKey) (placementv1beta1.BindingObj, error) {
+// FetchBindingFromKey resolves a bindingKey to a concrete binding object that implements BindingObj.
+func FetchBindingFromKey(ctx context.Context, c client.Reader, bindingKey queue.PlacementKey) (placementv1beta1.BindingObj, error) {
 	// Extract namespace and name from the placement key
-	namespace, name, err := ExtractNamespaceNameFromKey(placementKey)
+	namespace, name, err := ExtractNamespaceNameFromKey(bindingKey)
 	if err != nil {
 		return nil, err
 	}

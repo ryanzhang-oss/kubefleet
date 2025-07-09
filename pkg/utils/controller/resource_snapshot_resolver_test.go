@@ -173,7 +173,7 @@ func TestFetchMasterResourceSnapshot(t *testing.T) {
 				k8Client = fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.objects...).Build()
 			}
 
-			result, err := FetchMasterResourceSnapshot(context.Background(), k8Client, tt.placementKey)
+			result, err := FetchLatestMasterResourceSnapshot(context.Background(), k8Client, tt.placementKey)
 
 			if tt.expectedError != "" {
 				require.Error(t, err)

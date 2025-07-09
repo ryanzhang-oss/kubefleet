@@ -368,9 +368,32 @@ func TestFetchBindingFromKey(t *testing.T) {
 		{
 			name:         "cluster-scoped placement key - ClusterResourceBinding not found",
 			placementKey: queue.PlacementKey("test-placement"),
-			objects:      []client.Object{},
-			wantErr:      true,
-			wantBinding:  nil,
+			objects: []client.Object{
+				&placementv1beta1.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-binding-1",
+						Labels: map[string]string{
+							placementv1beta1.CRPTrackingLabel: "test-placement",
+						},
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-1",
+					},
+				},
+				&placementv1beta1.ClusterResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "other-binding",
+						Labels: map[string]string{
+							placementv1beta1.CRPTrackingLabel: "other-placement",
+						},
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-2",
+					},
+				},
+			},
+			wantErr:     true,
+			wantBinding: nil,
 		},
 		{
 			name:         "namespaced placement key - ResourceBinding found",
@@ -379,6 +402,24 @@ func TestFetchBindingFromKey(t *testing.T) {
 				&placementv1beta1.ResourceBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-placement",
+						Namespace: "test-namespace",
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-1",
+					},
+				},
+				&placementv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-placement",
+						Namespace: "other-namespace",
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-1",
+					},
+				},
+				&placementv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "other-placement",
 						Namespace: "test-namespace",
 					},
 					Spec: placementv1beta1.ResourceBindingSpec{
@@ -400,9 +441,28 @@ func TestFetchBindingFromKey(t *testing.T) {
 		{
 			name:         "namespaced placement key - ResourceBinding not found",
 			placementKey: queue.PlacementKey("test-namespace/test-placement"),
-			objects:      []client.Object{},
-			wantErr:      true,
-			wantBinding:  nil,
+			objects: []client.Object{
+				&placementv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-placement",
+						Namespace: "other-namespace",
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-1",
+					},
+				},
+				&placementv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "other-placement",
+						Namespace: "test-namespace",
+					},
+					Spec: placementv1beta1.ResourceBindingSpec{
+						TargetCluster: "cluster-1",
+					},
+				},
+			},
+			wantErr:     true,
+			wantBinding: nil,
 		},
 		{
 			name:         "invalid placement key format - too many separators",

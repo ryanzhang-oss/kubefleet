@@ -95,7 +95,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}()
 
 	// Get the binding using the utility function
-	placementKey := controller.GetPlacementKeyFromRequest(req)
+	placementKey := controller.GetObjectKeyFromRequest(req)
 	resourceBinding, err := controller.FetchBindingFromKey(ctx, r.Client, placementKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -280,7 +280,7 @@ func (r *Reconciler) updateBindingStatusWithRetry(ctx context.Context, resourceB
 		klog.ErrorS(err, "Failed to update the binding status, will retry", "binding", bindingRef, "bindingStatus", resourceBinding.GetBindingStatus())
 		errAfterRetries := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			// Get the latest binding object using the utility function
-			placementKey := controller.GetPlacementKeyFromObj(resourceBinding)
+			placementKey := controller.GetObjectKeyFromObj(resourceBinding)
 			latestBinding, err := controller.FetchBindingFromKey(ctx, r.Client, placementKey)
 			if err != nil {
 				return err
