@@ -389,9 +389,16 @@ func (r *Reconciler) ensureFinalizer(ctx context.Context, resourceBinding fleetv
 // listAllWorksAssociated finds all the live work objects that are associated with this binding.
 func (r *Reconciler) listAllWorksAssociated(ctx context.Context, resourceBinding fleetv1beta1.BindingObj) (map[string]*fleetv1beta1.Work, error) {
 	namespaceMatcher := client.InNamespace(fmt.Sprintf(utils.NamespaceNameFormat, resourceBinding.GetBindingSpec().TargetCluster))
-	parentBindingLabelMatcher := client.MatchingLabels{
+	// Create the label matchers
+	labelMatchers := map[string]string{
 		fleetv1beta1.ParentBindingLabel: resourceBinding.GetName(),
 	}
+	// Add ParentNamespaceLabel if the binding is namespaced
+	if resourceBinding.GetNamespace() != "" {
+		labelMatchers[fleetv1beta1.ParentNamespaceLabel] = resourceBinding.GetNamespace()
+	}
+
+	parentBindingLabelMatcher := client.MatchingLabels(labelMatchers)
 	currentWork := make(map[string]*fleetv1beta1.Work)
 	workList := &fleetv1beta1.WorkList{}
 	if err := r.Client.List(ctx, workList, parentBindingLabelMatcher, namespaceMatcher); err != nil {
@@ -690,10 +697,20 @@ func areAllWorkSynced(existingWorks map[string]*fleetv1beta1.Work, resourceBindi
 
 // fetchAllResourceSnapshots gathers all the resource snapshots for the resource binding.
 func (r *Reconciler) fetchAllResourceSnapshots(ctx context.Context, resourceBinding fleetv1beta1.BindingObj) (map[string]fleetv1beta1.ResourceSnapshotObj, error) {
-	// fetch the master snapshot first
-	// TODO: handle resourceBinding too
-	masterResourceSnapshot := fleetv1beta1.ClusterResourceSnapshot{}
-	if err := r.Client.Get(ctx, client.ObjectKey{Name: resourceBinding.GetBindingSpec().ResourceSnapshotName}, &masterResourceSnapshot); err != nil {
+	// Determine the type of resource snapshot to fetch based on the binding type
+	var masterResourceSnapshot fleetv1beta1.ResourceSnapshotObj
+	objectKey := client.ObjectKey{Name: resourceBinding.GetBindingSpec().ResourceSnapshotName}
+
+	// Fetch the master snapshot based on the binding type
+	if resourceBinding.GetNamespace() == "" {
+		// This is a ClusterResourceBinding, fetch ClusterResourceSnapshot
+		masterResourceSnapshot = &fleetv1beta1.ClusterResourceSnapshot{}
+	} else {
+		// This is a ResourceBinding, fetch ResourceSnapshot
+		masterResourceSnapshot = &fleetv1beta1.ResourceSnapshot{}
+		objectKey.Namespace = resourceBinding.GetNamespace()
+	}
+	if err := r.Client.Get(ctx, objectKey, masterResourceSnapshot); err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(2).InfoS("The master resource snapshot is deleted", "binding", klog.KObj(resourceBinding), "resourceSnapshotName", resourceBinding.GetBindingSpec().ResourceSnapshotName)
 			return nil, errResourceSnapshotNotFound
@@ -702,21 +719,31 @@ func (r *Reconciler) fetchAllResourceSnapshots(ctx context.Context, resourceBind
 			"binding", klog.KObj(resourceBinding), "masterResourceSnapshot", resourceBinding.GetBindingSpec().ResourceSnapshotName)
 		return nil, controller.NewAPIServerError(true, err)
 	}
-	return controller.FetchAllClusterResourceSnapshots(ctx, r.Client, resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel], &masterResourceSnapshot)
+	// get the placement key from the resource binding
+	placemenKey := controller.GetObjectKeyFromNamespaceName(resourceBinding.GetNamespace(), resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel])
+	return controller.FetchAllResourceSnapshots(ctx, r.Client, placemenKey, masterResourceSnapshot)
 }
 
 // generateSnapshotWorkObj generates the work object for the corresponding snapshot
 func generateSnapshotWorkObj(workName string, resourceBinding fleetv1beta1.BindingObj, resourceSnapshot fleetv1beta1.ResourceSnapshotObj,
 	manifest []fleetv1beta1.Manifest, resourceOverrideSnapshotHash, clusterResourceOverrideSnapshotHash string) *fleetv1beta1.Work {
+
+	// Create the labels map
+	labels := map[string]string{
+		fleetv1beta1.ParentBindingLabel:               resourceBinding.GetName(),
+		fleetv1beta1.CRPTrackingLabel:                 resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel],
+		fleetv1beta1.ParentResourceSnapshotIndexLabel: resourceSnapshot.GetLabels()[fleetv1beta1.ResourceIndexLabel],
+	}
+	// Add ParentNamespaceLabel if the binding is namespaced
+	if resourceBinding.GetNamespace() != "" {
+		labels[fleetv1beta1.ParentNamespaceLabel] = resourceBinding.GetNamespace()
+	}
+
 	return &fleetv1beta1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
 			Namespace: fmt.Sprintf(utils.NamespaceNameFormat, resourceBinding.GetBindingSpec().TargetCluster),
-			Labels: map[string]string{
-				fleetv1beta1.ParentBindingLabel:               resourceBinding.GetName(),
-				fleetv1beta1.CRPTrackingLabel:                 resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel],
-				fleetv1beta1.ParentResourceSnapshotIndexLabel: resourceSnapshot.GetLabels()[fleetv1beta1.ResourceIndexLabel],
-			},
+			Labels:    labels,
 			Annotations: map[string]string{
 				fleetv1beta1.ParentResourceSnapshotNameAnnotation:                resourceBinding.GetBindingSpec().ResourceSnapshotName,
 				fleetv1beta1.ParentResourceOverrideSnapshotHashAnnotation:        resourceOverrideSnapshotHash,
@@ -797,26 +824,42 @@ func (r *Reconciler) upsertWork(ctx context.Context, newWork, existingWork *flee
 }
 
 // getWorkNamePrefixFromSnapshotName extract the CRP and sub-index name from the corresponding resource snapshot.
-// The corresponding work name prefix is the CRP name + sub-index if there is a sub-index. Otherwise, it is the CRP name +"-work".
+// The corresponding work name prefix uses a common base name format to prevent naming conflicts.
+// For cluster-scoped placements: "placementName-work" or "placementName-{subindex}"
+// For namespaced placements: "namespace.placementName-work" or "namespace.placementName-{subindex}"
 // For example, if the resource snapshot name is "crp-1-0", the corresponding work name is "crp-0".
 // If the resource snapshot name is "crp-1", the corresponding work name is "crp-work".
+// For namespaced snapshots, it becomes "namespace.crp-work" or "namespace.crp-0".
 func getWorkNamePrefixFromSnapshotName(resourceSnapshot fleetv1beta1.ResourceSnapshotObj) (string, error) {
 	// The validation webhook should make sure the label and annotation are valid on all resource snapshot.
 	// We are just being defensive here.
-	crpName, exist := resourceSnapshot.GetLabels()[fleetv1beta1.CRPTrackingLabel]
+	placementName, exist := resourceSnapshot.GetLabels()[fleetv1beta1.CRPTrackingLabel]
 	if !exist {
-		return "", controller.NewUnexpectedBehaviorError(fmt.Errorf("resource snapshot %s has an invalid CRP tracking label", resourceSnapshot.GetName()))
+		return "", controller.NewUnexpectedBehaviorError(fmt.Errorf("resource snapshot %s has an invalid CRP tracking label", controller.GetObjectKeyFromObj(resourceSnapshot)))
 	}
-	subIndex, exist := resourceSnapshot.GetAnnotations()[fleetv1beta1.SubindexOfResourceSnapshotAnnotation]
-	if !exist {
-		// master snapshot doesn't have sub-index
-		return fmt.Sprintf(fleetv1beta1.FirstWorkNameFmt, crpName), nil
+
+	// Generate common base name format: namespace.name for namespaced, just name for cluster-scoped
+	var baseWorkName string
+	if resourceSnapshot.GetNamespace() != "" {
+		// This is a namespaced ResourceSnapshot, use namespace.name format
+		baseWorkName = fmt.Sprintf(fleetv1beta1.WorkNameBaseFmt, resourceSnapshot.GetNamespace(), placementName)
+	} else {
+		// This is a cluster-scoped ClusterResourceSnapshot, use just the placement name
+		baseWorkName = placementName
 	}
+
+	// Check if there's a subindex and generate the appropriate work name
+	subIndex, hasSubIndex := resourceSnapshot.GetAnnotations()[fleetv1beta1.SubindexOfResourceSnapshotAnnotation]
+	if !hasSubIndex {
+		// master snapshot doesn't have sub-index, append "-work"
+		return fmt.Sprintf(fleetv1beta1.FirstWorkNameFmt, baseWorkName), nil
+	}
+
 	subIndexVal, err := strconv.Atoi(subIndex)
 	if err != nil || subIndexVal < 0 {
-		return "", controller.NewUnexpectedBehaviorError(fmt.Errorf("resource snapshot %s has an invalid sub-index annotation %d or err %w", resourceSnapshot.GetName(), subIndexVal, err))
+		return "", controller.NewUnexpectedBehaviorError(fmt.Errorf("resource snapshot %s has an invalid sub-index annotation %d or err %w", controller.GetObjectKeyFromObj(resourceSnapshot), subIndexVal, err))
 	}
-	return fmt.Sprintf(fleetv1beta1.WorkNameWithSubindexFmt, crpName, subIndexVal), nil
+	return fmt.Sprintf(fleetv1beta1.WorkNameWithSubindexFmt, baseWorkName, subIndexVal), nil
 }
 
 // workConditionSummarizedStatus helps produce a summary status of a group of Applied, Available, or
@@ -904,8 +947,7 @@ func setBindingStatus(works map[string]*fleetv1beta1.Work, resourceBinding fleet
 			// might be incomplete or stale; apply/availability check failure and drifts cannot occur in
 			// report diff mode).
 		case appliedSummarizedStatus == workConditionSummarizedStatusIncomplete:
-			// The ClientSideApply or ServerSideApply apply strategy is in use but some of the works have
-			// not been applied yet.
+			// The ClientSideApply or ServerSideApply apply strategy is in use but some of the works have not been applied yet.
 			//
 			// In this case, no diffed, failed, or drifted placements will be set (as information present
 			// might be incomplete or stale).
@@ -1189,8 +1231,8 @@ func setAllWorkAvailableCondition(works map[string]*fleetv1beta1.Work, binding f
 		default:
 			// The Work object has not yet completed the availability check.
 			//
-			// This in theory should never happen as the Fleet work applier always set the Applied
-			// and Available conditions on a Work object together in one call and Fleet will not
+			// This in theory should never happen as the Fleet work applier always set the Applied and
+			// Available conditions on a Work object together in one call and Fleet will not
 			// check resource availability if the apply op itself has failed. However, Fleet can
 			// still handle this case for completeness reasons.
 			areAllWorksAvailabilityCheckCompleted = false
@@ -1454,10 +1496,12 @@ func (r *Reconciler) SetupWithManager(mgr controllerruntime.Manager) error {
 						"Could not find the parent binding label", "deleted work", evt.Object, "existing label", evt.Object.GetLabels())
 					return
 				}
+				parentNamespaceName := evt.Object.GetLabels()[fleetv1beta1.ParentNamespaceLabel]
 				// Make sure the work is not deleted behind our back
-				klog.V(2).InfoS("Received a work delete event", "work", klog.KObj(evt.Object), "parentBindingName", parentBindingName)
+				klog.V(2).InfoS("Received a work delete event", "work", klog.KObj(evt.Object), "parentBindingName", parentBindingName, "parentNamespaceName", parentNamespaceName)
 				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-					Name: parentBindingName,
+					Name:      parentBindingName,
+					Namespace: parentNamespaceName,
 				}})
 			},
 			// we care about work update event as we want to know when a work is applied so that we can
@@ -1525,9 +1569,11 @@ func (r *Reconciler) SetupWithManager(mgr controllerruntime.Manager) error {
 				}
 
 				// We need to update the binding status in this case
-				klog.V(2).InfoS("Received a work update event that we need to handle", "work", klog.KObj(newWork), "parentBindingName", parentBindingName)
+				parentNamespaceName := evt.ObjectNew.GetLabels()[fleetv1beta1.ParentNamespaceLabel]
+				klog.V(2).InfoS("Received a work update event that we need to handle", "work", klog.KObj(newWork), "parentNamespaceName", parentNamespaceName, "parentBindingName", parentBindingName)
 				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-					Name: parentBindingName,
+					Name:      parentBindingName,
+					Namespace: parentNamespaceName,
 				}})
 			},
 		}).

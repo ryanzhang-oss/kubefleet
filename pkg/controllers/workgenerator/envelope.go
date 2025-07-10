@@ -65,6 +65,10 @@ func (r *Reconciler) createOrUpdateEnvelopeCRWorkObj(
 		fleetv1beta1.EnvelopeNameLabel:      envelopeReader.GetName(),
 		fleetv1beta1.EnvelopeNamespaceLabel: envelopeReader.GetNamespace(),
 	}
+	// Add ParentNamespaceLabel if the binding is namespaced
+	if binding.GetNamespace() != "" {
+		labelMatcher[fleetv1beta1.ParentNamespaceLabel] = binding.GetNamespace()
+	}
 	workList := &fleetv1beta1.WorkList{}
 	if err = r.Client.List(ctx, workList, labelMatcher); err != nil {
 		klog.ErrorS(err, "Failed to list work objects when finding the work object for an envelope",
@@ -186,18 +190,25 @@ func buildNewWorkForEnvelopeCR(
 	workName := fmt.Sprintf(fleetv1beta1.WorkNameWithEnvelopeCRFmt, workNamePrefix, uuid.NewUUID())
 	workNamespace := fmt.Sprintf(utils.NamespaceNameFormat, resourceBinding.GetBindingSpec().TargetCluster)
 
+	// Create the labels map
+	labels := map[string]string{
+		fleetv1beta1.ParentBindingLabel:               resourceBinding.GetName(),
+		fleetv1beta1.CRPTrackingLabel:                 resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel],
+		fleetv1beta1.ParentResourceSnapshotIndexLabel: resourceSnapshot.GetLabels()[fleetv1beta1.ResourceIndexLabel],
+		fleetv1beta1.EnvelopeTypeLabel:                envelopeReader.GetEnvelopeType(),
+		fleetv1beta1.EnvelopeNameLabel:                envelopeReader.GetName(),
+		fleetv1beta1.EnvelopeNamespaceLabel:           envelopeReader.GetNamespace(),
+	}
+	// Add ParentNamespaceLabel if the binding is namespaced
+	if resourceBinding.GetNamespace() != "" {
+		labels[fleetv1beta1.ParentNamespaceLabel] = resourceBinding.GetNamespace()
+	}
+
 	return &fleetv1beta1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
 			Namespace: workNamespace,
-			Labels: map[string]string{
-				fleetv1beta1.ParentBindingLabel:               resourceBinding.GetName(),
-				fleetv1beta1.CRPTrackingLabel:                 resourceBinding.GetLabels()[fleetv1beta1.CRPTrackingLabel],
-				fleetv1beta1.ParentResourceSnapshotIndexLabel: resourceSnapshot.GetLabels()[fleetv1beta1.ResourceIndexLabel],
-				fleetv1beta1.EnvelopeTypeLabel:                envelopeReader.GetEnvelopeType(),
-				fleetv1beta1.EnvelopeNameLabel:                envelopeReader.GetName(),
-				fleetv1beta1.EnvelopeNamespaceLabel:           envelopeReader.GetNamespace(),
-			},
+			Labels:    labels,
 			Annotations: map[string]string{
 				fleetv1beta1.ParentResourceSnapshotNameAnnotation:                resourceBinding.GetBindingSpec().ResourceSnapshotName,
 				fleetv1beta1.ParentResourceOverrideSnapshotHashAnnotation:        resourceOverrideSnapshotHash,

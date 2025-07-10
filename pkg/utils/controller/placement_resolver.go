@@ -89,6 +89,17 @@ func GetObjectKeyFromRequest(req ctrl.Request) queue.PlacementKey {
 	}
 }
 
+// GetObjectKeyFromNamespaceName generates a PlacementKey from a namespace and name.
+func GetObjectKeyFromNamespaceName(namespace, name string) string {
+	if namespace == "" {
+		// Cluster-scoped placement
+		return name
+	} else {
+		// Namespaced placement
+		return namespace + namespaceSeparator + name
+	}
+}
+
 // ExtractNamespaceNameFromKey resolves a PlacementKey to a (namespace, name) tuple of the placement object.
 func ExtractNamespaceNameFromKey(key queue.PlacementKey) (string, string, error) {
 	keyStr := string(key)
