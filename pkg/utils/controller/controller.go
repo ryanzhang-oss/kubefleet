@@ -322,7 +322,7 @@ var (
 	errResourceNotFullyCreated = errors.New("not all resource snapshot in the same index group are created")
 )
 
-// FetchAllResourceSnapshots fetches the group of clusterResourceSnapshots or resourceSnapshots using the lastest master resourceSnapshot.
+// FetchAllResourceSnapshots fetches the group of clusterResourceSnapshots or resourceSnapshots using the latest master resourceSnapshot.
 func FetchAllResourceSnapshots(ctx context.Context, k8Client client.Reader, placementKey string, masterResourceSnapshot fleetv1beta1.ResourceSnapshotObj) (map[string]fleetv1beta1.ResourceSnapshotObj, error) {
 	resourceSnapshots := make(map[string]fleetv1beta1.ResourceSnapshotObj)
 	resourceSnapshots[masterResourceSnapshot.GetName()] = masterResourceSnapshot

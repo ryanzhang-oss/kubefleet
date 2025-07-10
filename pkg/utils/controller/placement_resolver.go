@@ -67,7 +67,7 @@ func FetchPlacementFromKey(ctx context.Context, c client.Reader, placementKey qu
 	}
 }
 
-// GetObjectKeyFromObj generates a PlacementKey from an meta object.
+// GetObjectKeyFromObj generates a object Key from a meta object.
 func GetObjectKeyFromObj(obj metav1.Object) queue.PlacementKey {
 	if obj.GetNamespace() == "" {
 		// Cluster-scoped placement

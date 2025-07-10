@@ -727,7 +727,6 @@ func (r *Reconciler) fetchAllResourceSnapshots(ctx context.Context, resourceBind
 // generateSnapshotWorkObj generates the work object for the corresponding snapshot
 func generateSnapshotWorkObj(workName string, resourceBinding fleetv1beta1.BindingObj, resourceSnapshot fleetv1beta1.ResourceSnapshotObj,
 	manifest []fleetv1beta1.Manifest, resourceOverrideSnapshotHash, clusterResourceOverrideSnapshotHash string) *fleetv1beta1.Work {
-
 	// Create the labels map
 	labels := map[string]string{
 		fleetv1beta1.ParentBindingLabel:               resourceBinding.GetName(),
@@ -738,7 +737,6 @@ func generateSnapshotWorkObj(workName string, resourceBinding fleetv1beta1.Bindi
 	if resourceBinding.GetNamespace() != "" {
 		labels[fleetv1beta1.ParentNamespaceLabel] = resourceBinding.GetNamespace()
 	}
-
 	return &fleetv1beta1.Work{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      workName,
