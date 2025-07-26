@@ -51,9 +51,9 @@ func FetchLatestMasterResourceSnapshot(ctx context.Context, k8Client client.Read
 			break
 		}
 	}
-	// It is possible that no master resourceSnapshot is found, e.g., when the new resourceSnapshot is created but not yet marked as the latest.
+	// The master is always the first to be created in the resourcegroup so it should be found.
 	if masterResourceSnapshot == nil {
-		return nil, fmt.Errorf("no masterResourceSnapshot found for the placement %v", placementKey)
+		return nil, NewUnexpectedBehaviorError(fmt.Errorf("no masterResourceSnapshot found for the placement %v", placementKey))
 	}
 	klog.V(2).InfoS("Found the latest associated masterResourceSnapshot", "placement", placementKey, "masterResourceSnapshot", klog.KObj(masterResourceSnapshot))
 	return masterResourceSnapshot, nil

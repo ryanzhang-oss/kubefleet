@@ -119,41 +119,31 @@ func BuildPolicySnapshot(placementObj fleetv1beta1.PlacementObj, policySnapshotI
 // FetchLatestPolicySnapshot fetches the latest policy snapshot for a given placement.
 // For cluster-scoped placements, it fetches ClusterSchedulingPolicySnapshot.
 // For namespaced placements, it fetches SchedulingPolicySnapshot.
-func FetchLatestPolicySnapshot(ctx context.Context, k8Client client.Reader, placementKey types.NamespacedName) (fleetv1beta1.PolicySnapshotObj, int, error) {
-	policySnapshotList, err := ListPolicySnapshots(ctx, k8Client, placementKey)
-	if err != nil {
-		return nil, -1, err
+func FetchLatestPolicySnapshot(ctx context.Context, k8Client client.Reader, placementKey types.NamespacedName) (fleetv1beta1.PolicySnapshotList, error) {
+	namespace := placementKey.Namespace
+	name := placementKey.Name
+
+	var policySnapshotList fleetv1beta1.PolicySnapshotList
+	var listOptions []client.ListOption
+	listOptions = append(listOptions, client.MatchingLabels{
+		fleetv1beta1.PlacementTrackingLabel: name,
+		fleetv1beta1.IsLatestSnapshotLabel:  strconv.FormatBool(true),
+	})
+
+	if namespace != "" {
+		// This is a namespaced SchedulingPolicySnapshotList
+		policySnapshotList = &fleetv1beta1.SchedulingPolicySnapshotList{}
+		listOptions = append(listOptions, client.InNamespace(namespace))
+	} else {
+		// This is a cluster-scoped ClusterSchedulingPolicySnapshotList
+		policySnapshotList = &fleetv1beta1.ClusterSchedulingPolicySnapshotList{}
 	}
 
-	items := policySnapshotList.GetPolicySnapshotObjs()
-	if len(items) == 0 {
-		klog.V(2).InfoS("No policySnapshots found for the placement", "placement", placementKey)
-		return nil, -1, nil
+	if err := k8Client.List(ctx, policySnapshotList, listOptions...); err != nil {
+		klog.ErrorS(err, "Failed to list the policySnapshots associated with the placement", "placement", placementKey)
+		return nil, err
 	}
-
-	// Find the latest policy snapshot by comparing policy index
-	var latestPolicySnapshot fleetv1beta1.PolicySnapshotObj
-	latestIndex := -1
-
-	for _, policySnapshot := range items {
-		labels := policySnapshot.GetLabels()
-		if indexStr, exists := labels[fleetv1beta1.PolicyIndexLabel]; exists {
-			if index, err := strconv.Atoi(indexStr); err == nil {
-				if index > latestIndex {
-					latestIndex = index
-					latestPolicySnapshot = policySnapshot
-				}
-			}
-		}
-	}
-
-	if latestPolicySnapshot == nil {
-		klog.V(2).InfoS("No valid policySnapshot found for the placement", "placement", placementKey)
-		return nil, -1, nil
-	}
-
-	klog.V(2).InfoS("Found the latest policySnapshot", "placement", placementKey, "policySnapshot", klog.KObj(latestPolicySnapshot))
-	return latestPolicySnapshot, latestIndex, nil
+	return policySnapshotList, nil
 }
 
 // ListPolicySnapshots lists all policy snapshots associated with a placement key.

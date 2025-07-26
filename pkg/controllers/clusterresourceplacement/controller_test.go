@@ -121,8 +121,9 @@ func clusterResourcePlacementForTest() *fleetv1beta1.ClusterResourcePlacement {
 
 func TestGetOrCreateClusterSchedulingPolicySnapshot(t *testing.T) {
 	testPolicy := placementPolicyForTest()
-	testPolicy.NumberOfClusters = nil
-	jsonBytes, err := json.Marshal(testPolicy)
+	testPolicyHash := testPolicy.DeepCopy()
+	testPolicyHash.NumberOfClusters = nil
+	jsonBytes, err := json.Marshal(testPolicyHash)
 	if err != nil {
 		t.Fatalf("failed to create the policy hash: %v", err)
 	}
@@ -749,10 +750,17 @@ func TestGetOrCreateClusterSchedulingPolicySnapshot(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to getOrCreateClusterSchedulingPolicySnapshot: %v", err)
 			}
+
+			// Convert interface to concrete type for comparison
+			gotSnapshot, ok := got.(*fleetv1beta1.ClusterSchedulingPolicySnapshot)
+			if !ok {
+				t.Fatalf("expected *ClusterSchedulingPolicySnapshot, got %T", got)
+			}
+
 			options := []cmp.Option{
 				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
 			}
-			if diff := cmp.Diff(tc.wantPolicySnapshots[tc.wantLatestSnapshotIndex], got, options...); diff != "" {
+			if diff := cmp.Diff(tc.wantPolicySnapshots[tc.wantLatestSnapshotIndex], *gotSnapshot, options...); diff != "" {
 				t.Errorf("getOrCreateClusterSchedulingPolicySnapshot() mismatch (-want, +got):\n%s", diff)
 			}
 			clusterPolicySnapshotList := &fleetv1beta1.ClusterSchedulingPolicySnapshotList{}
@@ -2785,7 +2793,7 @@ func TestGetOrCreateClusterResourceSnapshot_failure(t *testing.T) {
 		},
 		{
 			// Should never hit this case unless there is a bug in the controller or customers manually modify the clusterResourceSnapshot.
-			name: "existing active policy snapshot does not have hash annotation",
+			name: "existing active resource snapshot does not have hash annotation",
 			resourceSnapshots: []fleetv1beta1.ClusterResourceSnapshot{
 				{
 					ObjectMeta: metav1.ObjectMeta{
