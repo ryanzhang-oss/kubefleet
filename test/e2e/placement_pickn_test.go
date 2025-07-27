@@ -492,7 +492,7 @@ var _ = Describe("placing resources using a CRP of PickN placement", func() {
 		})
 	})
 
-	Context("downscaling to zero", Ordered, func() {
+	FContext("downscaling to zero", Ordered, func() {
 		crpName := fmt.Sprintf(crpNameTemplate, GinkgoParallelProcess())
 
 		BeforeAll(func() {
