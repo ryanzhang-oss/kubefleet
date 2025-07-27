@@ -137,6 +137,7 @@ func ListAllResourceSnapshotWithAnIndex(ctx context.Context, k8Client client.Rea
 			"resourceSnapshotIndex", resourceSnapshotIndex, "placementName", placementName, "placementNamespace", placementNamespace)
 		return nil, NewAPIServerError(true, err)
 	}
+
 	return resourceSnapshotList, nil
 }
 

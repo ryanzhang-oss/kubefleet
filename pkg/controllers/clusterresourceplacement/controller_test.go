@@ -39,6 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	fleetv1beta1 "github.com/kubefleet-dev/kubefleet/apis/placement/v1beta1"
+	"github.com/kubefleet-dev/kubefleet/pkg/utils"
 	"github.com/kubefleet-dev/kubefleet/pkg/utils/condition"
 	"github.com/kubefleet-dev/kubefleet/pkg/utils/controller"
 	"github.com/kubefleet-dev/kubefleet/pkg/utils/defaulter"
@@ -3576,7 +3577,7 @@ func TestIsRolloutComplete(t *testing.T) {
 	}
 }
 
-func TestDetermineRolloutStateForCRPWithExternalRolloutStrategy(t *testing.T) {
+func TestDetermineRolloutStateForPlacementWithExternalRolloutStrategy(t *testing.T) {
 	namespaceResourceContent := *resource.NamespaceResourceContentForTest(t)
 	deploymentResourceContent := *resource.DeploymentResourceContentForTest(t)
 
@@ -4427,23 +4428,24 @@ func TestDetermineRolloutStateForCRPWithExternalRolloutStrategy(t *testing.T) {
 			var cmpOptions = []cmp.Option{
 				// ignore the message as we may change the message in the future
 				cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
+				cmpopts.SortSlices(utils.LessFuncResourceIdentifier),
 			}
-			gotRolloutUnknown, gotErr := r.determineRolloutStateForCRPWithExternalRolloutStrategy(context.Background(), crp, tc.selected, tc.allRPS, tc.selectedResources)
+			gotRolloutUnknown, gotErr := r.determineRolloutStateForPlacementWithExternalRolloutStrategy(context.Background(), crp, tc.selected, tc.allRPS, tc.selectedResources)
 			if (gotErr != nil) != tc.wantErr {
-				t.Errorf("determineRolloutStateForCRPWithExternalRolloutStrategy() got error %v, want error %t", gotErr, tc.wantErr)
+				t.Errorf("determineRolloutStateForPlacementWithExternalRolloutStrategy() got error %v, want error %t", gotErr, tc.wantErr)
 			}
 			if !tc.wantErr {
 				if gotRolloutUnknown != tc.wantRolloutUnknown {
-					t.Errorf("determineRolloutStateForCRPWithExternalRolloutStrategy() got RolloutUnknown set to %v, want %v", gotRolloutUnknown, tc.wantRolloutUnknown)
+					t.Errorf("determineRolloutStateForPlacementWithExternalRolloutStrategy() got RolloutUnknown set to %v, want %v", gotRolloutUnknown, tc.wantRolloutUnknown)
 				}
 				if crp.Status.ObservedResourceIndex != tc.wantObservedResourceIndex {
-					t.Errorf("determineRolloutStateForCRPWithExternalRolloutStrategy() got crp.Status.ObservedResourceIndex set to %v, want %v", crp.Status.ObservedResourceIndex, tc.wantObservedResourceIndex)
+					t.Errorf("determineRolloutStateForPlacementWithExternalRolloutStrategy() got crp.Status.ObservedResourceIndex set to %v, want %v", crp.Status.ObservedResourceIndex, tc.wantObservedResourceIndex)
 				}
-				if diff := cmp.Diff(tc.wantSelectedResources, crp.Status.SelectedResources); diff != "" {
-					t.Errorf("determineRolloutStateForCRPWithExternalRolloutStrategy() got crp.Status.SelectedResources mismatch (-want, +got):\n%s", diff)
+				if diff := cmp.Diff(tc.wantSelectedResources, crp.Status.SelectedResources, cmpOptions...); diff != "" {
+					t.Errorf("determineRolloutStateForPlacementWithExternalRolloutStrategy() got crp.Status.SelectedResources mismatch (-want, +got):\n%s", diff)
 				}
 				if diff := cmp.Diff(tc.wantConditions, crp.Status.Conditions, cmpOptions...); diff != "" {
-					t.Errorf("determineRolloutStateForCRPWithExternalRolloutStrategy() got crp.Status.Conditions mismatch (-want, +got):\n%s", diff)
+					t.Errorf("determineRolloutStateForPlacementWithExternalRolloutStrategy() got crp.Status.Conditions mismatch (-want, +got):\n%s", diff)
 				}
 			}
 		})
