@@ -408,7 +408,7 @@ func CollectResourceIdentifiersFromResourceSnapshot(
 	}
 	if masterResourceSnapshot == nil {
 		err := NewUnexpectedBehaviorError(fmt.Errorf("no master resourceSnapshot found for placement `%s`", placementKey))
-		klog.ErrorS(err, "Found resourceSnapshots without master snapshot", "placement", placementKey, "resourceSnapshotIndex", resourceSnapshotIndex, "resourceSnapshotCount", len(items))
+		klog.ErrorS(err, "Found resourceSnapshots without master resource Snapshot", "placement", placementKey, "resourceSnapshotIndex", resourceSnapshotIndex, "resourceSnapshotCount", len(items))
 		return nil, err
 	}
 

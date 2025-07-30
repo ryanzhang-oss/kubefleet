@@ -384,7 +384,7 @@ var removeFinalizerAndUpdate = func(ctx context.Context, hubClient client.Client
 	controllerutil.RemoveFinalizer(binding, placementv1beta1.SchedulerBindingCleanupFinalizer)
 	err := hubClient.Update(ctx, binding, &client.UpdateOptions{})
 	if err == nil {
-		klog.V(2).InfoS("Removed scheduler CRB cleanup finalizer", "binding", klog.KObj(binding))
+		klog.V(2).InfoS("Removed scheduler binding cleanup finalizer", "binding", klog.KObj(binding))
 	}
 	return err
 }
@@ -763,7 +763,7 @@ func (f *framework) updatePolicySnapshotStatusFromBindings(
 	policyRef := klog.KObj(policy)
 
 	// Retrieve the corresponding CRP generation.
-	observedCRPGeneration, err := annotations.ExtractObservedCRPGenerationFromPolicySnapshot(policy)
+	observedCRPGeneration, err := annotations.ExtractObservedPlacementGenerationFromPolicySnapshot(policy)
 	if err != nil {
 		klog.ErrorS(err, "Failed to retrieve CRP generation from annotation", "clusterSchedulingPolicySnapshot", policyRef)
 		return controller.NewUnexpectedBehaviorError(err)
@@ -1344,7 +1344,7 @@ func (f *framework) updatePolicySnapshotStatusForPickFixedPlacementType(
 	policyRef := klog.KObj(policy)
 
 	// Retrieve the corresponding CRP generation.
-	observedCRPGeneration, err := annotations.ExtractObservedCRPGenerationFromPolicySnapshot(policy)
+	observedCRPGeneration, err := annotations.ExtractObservedPlacementGenerationFromPolicySnapshot(policy)
 	if err != nil {
 		klog.ErrorS(err, "Failed to retrieve CRP generation from annotation", "clusterSchedulingPolicySnapshot", policyRef)
 		return controller.NewUnexpectedBehaviorError(err)

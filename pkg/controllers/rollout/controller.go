@@ -386,7 +386,6 @@ func (r *Reconciler) pickBindingsToRoll(
 		bindingSpec := binding.GetBindingSpec()
 		switch bindingSpec.State {
 		case placementv1beta1.BindingStateUnscheduled:
-			// Use updated interface-based bindingutils functions
 			if bindingutils.HasBindingFailed(binding) {
 				klog.V(2).InfoS("Found a failed to be ready unscheduled binding", "placement", placementKObj, "binding", bindingKObj)
 			} else if !bindingutils.IsBindingDiffReported(binding) {
@@ -501,6 +500,7 @@ func determineBindingsToUpdate(
 	readyBindings, canBeReadyBindings, canBeUnavailableBindings []placementv1beta1.BindingObj,
 ) ([]toBeUpdatedBinding, []toBeUpdatedBinding) {
 	toBeUpdatedBindingList := make([]toBeUpdatedBinding, 0)
+	// TODO: Fix the bug that we don't shrink to zero when there are bindings that are not ready yet.
 	// calculate the max number of bindings that can be unavailable according to user specified maxUnavailable
 	maxNumberToRemove := calculateMaxToRemove(placementObj, targetNumber, readyBindings, canBeUnavailableBindings)
 	// we can still update the bindings that are failed to apply already regardless of the maxNumberToRemove

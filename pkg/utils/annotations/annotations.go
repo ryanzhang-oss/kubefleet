@@ -42,34 +42,44 @@ func ExtractNumOfClustersFromPolicySnapshot(policy fleetv1beta1.PolicySnapshotOb
 	return numOfClusters, nil
 }
 
-// ExtractObservedCRPGenerationFromPolicySnapshot extracts the observed CRP generation from policySnapshot.
-func ExtractObservedCRPGenerationFromPolicySnapshot(policy fleetv1beta1.PolicySnapshotObj) (int64, error) {
-	crpGenerationStr, ok := policy.GetAnnotations()[fleetv1beta1.CRPGenerationAnnotation]
+// ExtractSubindexFromResourceSnapshot is a helper function to extract subindex from ResourceSnapshot objects.
+func ExtractSubindexFromResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (doesExist bool, subindex int, err error) {
+	annotations := snapshot.GetAnnotations()
+	if annotations == nil {
+		return false, 0, nil
+	}
+
+	subindexStr, exists := annotations[fleetv1beta1.SubindexOfResourceSnapshotAnnotation]
+	if !exists || subindexStr == "" {
+		return false, 0, nil
+	}
+
+	subindex, err = strconv.Atoi(subindexStr)
+	if err != nil {
+		return false, 0, fmt.Errorf("invalid subindex annotation value %q: %w", subindexStr, err)
+	}
+
+	if subindex < 0 {
+		return false, 0, fmt.Errorf("subindex cannot be negative: %d", subindex)
+	}
+
+	return true, subindex, nil
+}
+
+// ExtractObservedPlacementGenerationFromPolicySnapshot extracts the observed placement generation from policySnapshot.
+func ExtractObservedPlacementGenerationFromPolicySnapshot(policy fleetv1beta1.PolicySnapshotObj) (int64, error) {
+	placementGenerationStr, ok := policy.GetAnnotations()[fleetv1beta1.CRPGenerationAnnotation]
 	if !ok {
 		return 0, fmt.Errorf("cannot find annotation %s", fleetv1beta1.CRPGenerationAnnotation)
 	}
 
 	// Cast the annotation to an integer; throw an error if the cast cannot be completed or the value is negative.
-	observedCRPGeneration, err := strconv.Atoi(crpGenerationStr)
-	if err != nil || observedCRPGeneration < 0 {
-		return 0, fmt.Errorf("invalid annotation %s: %s is not a valid value: %w", fleetv1beta1.CRPGenerationAnnotation, crpGenerationStr, err)
+	observedplacementGeneration, err := strconv.Atoi(placementGenerationStr)
+	if err != nil || observedplacementGeneration < 0 {
+		return 0, fmt.Errorf("invalid annotation %s: %s is not a valid value: %w", fleetv1beta1.CRPGenerationAnnotation, placementGenerationStr, err)
 	}
 
-	return int64(observedCRPGeneration), nil
-}
-
-// ExtractSubindexFromClusterResourceSnapshot extracts the subindex value from the annotations of a clusterResourceSnapshot.
-func ExtractSubindexFromClusterResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (doesExist bool, subindex int, err error) {
-	subindexStr, ok := snapshot.GetAnnotations()[fleetv1beta1.SubindexOfResourceSnapshotAnnotation]
-	if !ok {
-		return false, -1, nil
-	}
-	subindex, err = strconv.Atoi(subindexStr)
-	if err != nil || subindex < 0 {
-		return true, -1, fmt.Errorf("invalid annotation %s: %s is invalid: %w", fleetv1beta1.SubindexOfResourceSnapshotAnnotation, subindexStr, err)
-	}
-
-	return true, subindex, nil
+	return int64(observedplacementGeneration), nil
 }
 
 // ExtractNumberOfResourceSnapshotsFromResourceSnapshot extracts the number of clusterResourceSnapshots in a group from the master clusterResourceSnapshot.
@@ -124,28 +134,4 @@ func ParseResourceGroupHashFromAnnotation(resourceSnapshot fleetv1beta1.Resource
 		return "", fmt.Errorf("ResourceGroupHashAnnotation is not set")
 	}
 	return v, nil
-}
-
-// ExtractSubindexFromResourceSnapshot is a helper function to extract subindex from ResourceSnapshot objects.
-func ExtractSubindexFromResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (doesExist bool, subindex int, err error) {
-	annotations := snapshot.GetAnnotations()
-	if annotations == nil {
-		return false, 0, nil
-	}
-
-	subindexStr, exists := annotations[fleetv1beta1.SubindexOfResourceSnapshotAnnotation]
-	if !exists || subindexStr == "" {
-		return false, 0, nil
-	}
-
-	subindex, err = strconv.Atoi(subindexStr)
-	if err != nil {
-		return false, 0, fmt.Errorf("invalid subindex annotation value %q: %w", subindexStr, err)
-	}
-
-	if subindex < 0 {
-		return false, 0, fmt.Errorf("subindex cannot be negative: %d", subindex)
-	}
-
-	return true, subindex, nil
 }

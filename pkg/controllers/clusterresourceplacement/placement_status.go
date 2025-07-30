@@ -97,9 +97,9 @@ func appendFailedToScheduleResourcePlacementStatuses(
 	return allRPS
 }
 
-// determineExpectedCRPAndResourcePlacementStatusCondType determines the expected condition types for the CRP and resource placement statuses
+// determineExpectedPlacementAndResourcePlacementStatusCondType determines the expected condition types for the CRP and resource placement statuses
 // given the currently in-use apply strategy.
-func determineExpectedCRPAndResourcePlacementStatusCondType(placementObj fleetv1beta1.PlacementObj) []condition.ResourceCondition {
+func determineExpectedPlacementAndResourcePlacementStatusCondType(placementObj fleetv1beta1.PlacementObj) []condition.ResourceCondition {
 	placementSpec := placementObj.GetPlacementSpec()
 	switch {
 	case placementSpec.Strategy.ApplyStrategy == nil:
@@ -113,6 +113,7 @@ func determineExpectedCRPAndResourcePlacementStatusCondType(placementObj fleetv1
 
 // appendScheduledResourcePlacementStatuses appends the resource placement statuses for the
 // scheduled clusters to the list of all resource placement statuses.
+// it returns the updated list of resource placement statuses.
 func (r *Reconciler) appendScheduledResourcePlacementStatuses(
 	ctx context.Context,
 	allRPS []fleetv1beta1.ResourcePlacementStatus,
@@ -196,8 +197,9 @@ func (r *Reconciler) appendScheduledResourcePlacementStatuses(
 	return allRPS, rpsSetCondTypeCounter, nil
 }
 
-// setCRPConditions sets the CRP conditions based on the resource placement statuses.
-func setCRPConditions(
+// TODO: make this work with RP
+// setPlacementConditions currently sets the CRP conditions based on the resource placement statuses.
+func setPlacementConditions(
 	placementObj fleetv1beta1.PlacementObj,
 	allRPS []fleetv1beta1.ResourcePlacementStatus,
 	rpsSetCondTypeCounter [condition.TotalCondition][condition.TotalConditionStatus]int,

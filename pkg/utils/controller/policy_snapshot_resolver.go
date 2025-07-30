@@ -63,57 +63,51 @@ func DeletePolicySnapshots(ctx context.Context, k8Client client.Client, placemen
 // For cluster-scoped placements, it returns a ClusterSchedulingPolicySnapshot.
 // For namespaced placements, it returns a SchedulingPolicySnapshot.
 func BuildPolicySnapshot(placementObj fleetv1beta1.PlacementObj, policySnapshotIndex int, policyHash string) fleetv1beta1.PolicySnapshotObj {
+	var snapshot fleetv1beta1.PolicySnapshotObj
 	labels := map[string]string{
 		fleetv1beta1.PlacementTrackingLabel: placementObj.GetName(),
 		fleetv1beta1.IsLatestSnapshotLabel:  strconv.FormatBool(true),
 		fleetv1beta1.PolicyIndexLabel:       strconv.Itoa(policySnapshotIndex),
 	}
-
 	annotations := map[string]string{
 		fleetv1beta1.CRPGenerationAnnotation: strconv.FormatInt(placementObj.GetGeneration(), 10),
 	}
+	// Add NumberOfClusters annotation if placement is selectN type
+	if spec := placementObj.GetPlacementSpec(); spec.Policy != nil &&
+		spec.Policy.PlacementType == fleetv1beta1.PickNPlacementType &&
+		spec.Policy.NumberOfClusters != nil {
+		annotations[fleetv1beta1.NumberOfClustersAnnotation] = strconv.Itoa(int(*spec.Policy.NumberOfClusters))
+	}
 
+	spec := fleetv1beta1.SchedulingPolicySnapshotSpec{
+		Policy:     placementObj.GetPlacementSpec().Policy,
+		PolicyHash: []byte(policyHash),
+	}
 	// Set the name following the convention: {PlacementName}-{index}
 	name := fmt.Sprintf(fleetv1beta1.PolicySnapshotNameFmt, placementObj.GetName(), policySnapshotIndex)
-
 	if placementObj.GetNamespace() != "" {
 		// This is a namespaced ResourcePlacement - create SchedulingPolicySnapshot
-		snapshot := &fleetv1beta1.SchedulingPolicySnapshot{
+		snapshot = &fleetv1beta1.SchedulingPolicySnapshot{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Namespace:   placementObj.GetNamespace(),
 				Labels:      labels,
 				Annotations: annotations,
 			},
-			Spec: fleetv1beta1.SchedulingPolicySnapshotSpec{
-				Policy:     placementObj.GetPlacementSpec().Policy,
-				PolicyHash: []byte(policyHash),
-			},
+			Spec: spec,
 		}
-		return snapshot
 	} else {
 		// This is a cluster-scoped ClusterResourcePlacement - create ClusterSchedulingPolicySnapshot
-		snapshot := &fleetv1beta1.ClusterSchedulingPolicySnapshot{
+		snapshot = &fleetv1beta1.ClusterSchedulingPolicySnapshot{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Labels:      labels,
 				Annotations: annotations,
 			},
-			Spec: fleetv1beta1.SchedulingPolicySnapshotSpec{
-				Policy:     placementObj.GetPlacementSpec().Policy,
-				PolicyHash: []byte(policyHash),
-			},
+			Spec: spec,
 		}
-
-		// Add NumberOfClusters annotation if placement is selectN type
-		if spec := placementObj.GetPlacementSpec(); spec.Policy != nil &&
-			spec.Policy.PlacementType == fleetv1beta1.PickNPlacementType &&
-			spec.Policy.NumberOfClusters != nil {
-			snapshot.Annotations[fleetv1beta1.NumberOfClustersAnnotation] = strconv.Itoa(int(*spec.Policy.NumberOfClusters))
-		}
-
-		return snapshot
 	}
+	return snapshot
 }
 
 // FetchLatestPolicySnapshot fetches the latest policy snapshot for a given placement.
