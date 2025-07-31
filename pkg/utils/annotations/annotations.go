@@ -82,7 +82,7 @@ func ExtractObservedPlacementGenerationFromPolicySnapshot(policy fleetv1beta1.Po
 	return int64(observedplacementGeneration), nil
 }
 
-// ExtractNumberOfResourceSnapshotsFromResourceSnapshot extracts the number of clusterResourceSnapshots in a group from the master clusterResourceSnapshot.
+// ExtractNumberOfResourceSnapshotsFromResourceSnapshot extracts the number of resourceSnapshots in a group from the master resourceSnapshot.
 func ExtractNumberOfResourceSnapshotsFromResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (int, error) {
 	countAnnotation := snapshot.GetAnnotations()[fleetv1beta1.NumberOfResourceSnapshotsAnnotation]
 	snapshotCount, err := strconv.Atoi(countAnnotation)
@@ -93,7 +93,7 @@ func ExtractNumberOfResourceSnapshotsFromResourceSnapshot(snapshot fleetv1beta1.
 	return snapshotCount, nil
 }
 
-// ExtractNumberOfEnvelopeObjFromResourceSnapshot extracts the number of envelope object in a group from the master clusterResourceSnapshot.
+// ExtractNumberOfEnvelopeObjFromResourceSnapshot extracts the number of envelope object in a group from the master resourceSnapshot.
 func ExtractNumberOfEnvelopeObjFromResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (int, error) {
 	countAnnotation, exist := snapshot.GetAnnotations()[fleetv1beta1.NumberOfEnvelopedObjectsAnnotation]
 	// doesn't exist means no enveloped object in the snapshot group
@@ -108,7 +108,7 @@ func ExtractNumberOfEnvelopeObjFromResourceSnapshot(snapshot fleetv1beta1.Resour
 	return envelopeObjCount, nil
 }
 
-// ExtractNextResourceSnapshotCandidateDetectionTimeFromResourceSnapshot extracts the next resource snapshot candidate detection time from the annotations of a clusterResourceSnapshot.
+// ExtractNextResourceSnapshotCandidateDetectionTimeFromResourceSnapshot extracts the next resource snapshot candidate detection time from the annotations of a resourceSnapshot.
 // If the annotation does not exist, it returns 0 duration.
 func ExtractNextResourceSnapshotCandidateDetectionTimeFromResourceSnapshot(snapshot fleetv1beta1.ResourceSnapshotObj) (time.Time, error) {
 	nextDetectionTimeStr, ok := snapshot.GetAnnotations()[fleetv1beta1.NextResourceSnapshotCandidateDetectionTimeAnnotation]

@@ -322,7 +322,7 @@ var (
 	errResourceNotFullyCreated = errors.New("not all resource snapshot in the same index group are created")
 )
 
-// FetchAllResourceSnapshotsAlongWithMaster fetches the group of clusterResourceSnapshots or resourceSnapshots using the latest master resourceSnapshot.
+// FetchAllResourceSnapshotsAlongWithMaster fetches the group of resourceSnapshot or resourceSnapshots using the latest master resourceSnapshot.
 // TODO: move it to resourceSnapshot lib
 func FetchAllResourceSnapshotsAlongWithMaster(ctx context.Context, k8Client client.Reader, placementKey string, masterResourceSnapshot fleetv1beta1.ResourceSnapshotObj) (map[string]fleetv1beta1.ResourceSnapshotObj, error) {
 	resourceSnapshots := make(map[string]fleetv1beta1.ResourceSnapshotObj)
@@ -428,7 +428,7 @@ func CollectResourceIdentifiersUsingMasterResourceSnapshot(
 ) ([]fleetv1beta1.ResourceIdentifier, error) {
 	allResourceSnapshots, err := FetchAllResourceSnapshotsAlongWithMaster(ctx, k8Client, placementKey, masterResourceSnapshot)
 	if err != nil {
-		klog.ErrorS(err, "Failed to fetch all the clusterResourceSnapshots", "resourceSnapshotIndex", resourceSnapshotIndex, "clusterResourcePlacement", placementKey)
+		klog.ErrorS(err, "Failed to fetch all the resourceSnapshots", "resourceSnapshotIndex", resourceSnapshotIndex, "placement", placementKey)
 		return nil, err
 	}
 

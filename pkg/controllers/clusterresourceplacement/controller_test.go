@@ -749,20 +749,20 @@ func TestGetOrCreateClusterSchedulingPolicySnapshot(t *testing.T) {
 			}
 			got, err := r.getOrCreateSchedulingPolicySnapshot(ctx, crp, int(limit))
 			if err != nil {
-				t.Fatalf("failed to getOrCreateClusterSchedulingPolicySnapshot: %v", err)
+				t.Fatalf("failed to getOrCreateSchedulingPolicySnapshot: %v", err)
 			}
 
 			// Convert interface to concrete type for comparison
 			gotSnapshot, ok := got.(*fleetv1beta1.ClusterSchedulingPolicySnapshot)
 			if !ok {
-				t.Fatalf("expected *ClusterSchedulingPolicySnapshot, got %T", got)
+				t.Fatalf("getOrCreateSchedulingPolicySnapshot() got %T, want *ClusterSchedulingPolicySnapshot", got)
 			}
 
 			options := []cmp.Option{
 				cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
 			}
 			if diff := cmp.Diff(tc.wantPolicySnapshots[tc.wantLatestSnapshotIndex], *gotSnapshot, options...); diff != "" {
-				t.Errorf("getOrCreateClusterSchedulingPolicySnapshot() mismatch (-want, +got):\n%s", diff)
+				t.Errorf("getOrCreateSchedulingPolicySnapshot() mismatch (-want, +got):\n%s", diff)
 			}
 			clusterPolicySnapshotList := &fleetv1beta1.ClusterSchedulingPolicySnapshotList{}
 			if err := fakeClient.List(ctx, clusterPolicySnapshotList); err != nil {
@@ -2712,10 +2712,10 @@ func TestGetOrCreateClusterResourceSnapshot(t *testing.T) {
 			resourceSnapshotResourceSizeLimit = tc.selectedResourcesSizeLimit
 			res, got, err := r.getOrCreateResourceSnapshot(ctx, crp, tc.envelopeObjCount, tc.resourceSnapshotSpec, int(limit))
 			if err != nil {
-				t.Fatalf("failed to handle getOrCreateClusterResourceSnapshot: %v", err)
+				t.Fatalf("failed to handle getOrCreateResourceSnapshot: %v", err)
 			}
 			if res.Requeue != tc.wantRequeue {
-				t.Fatalf("getOrCreateClusterResourceSnapshot() got Requeue %v, want %v", res.Requeue, tc.wantRequeue)
+				t.Fatalf("getOrCreateResourceSnapshot() got Requeue %v, want %v", res.Requeue, tc.wantRequeue)
 			}
 
 			options := []cmp.Option{
@@ -2726,7 +2726,7 @@ func TestGetOrCreateClusterResourceSnapshot(t *testing.T) {
 			}
 			if tc.wantRequeue {
 				if res.RequeueAfter <= 0 {
-					t.Fatalf("getOrCreateClusterResourceSnapshot() got RequeueAfter %v, want greater than zero value", res.RequeueAfter)
+					t.Fatalf("getOrCreateResourceSnapshot() got RequeueAfter %v, want greater than zero value", res.RequeueAfter)
 				}
 			}
 			annotationOption := cmp.Transformer("NormalizeAnnotations", func(m map[string]string) map[string]string {

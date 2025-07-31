@@ -191,7 +191,7 @@ func (r *Reconciler) appendScheduledResourcePlacementStatuses(
 		// The allRPS slice has been pre-allocated, so the append call will never produce a new
 		// slice; here, however, Fleet will still return the old slice just in case.
 		allRPS = append(allRPS, *rps)
-		klog.V(2).InfoS("Populated the resource placement status for the scheduled cluster", "clusterResourcePlacement", klog.KObj(placementObj), "cluster", clusterDecision.ClusterName, "resourcePlacementStatus", rps)
+		klog.V(2).InfoS("Populated the resource placement status for the scheduled cluster", "placement", klog.KObj(placementObj), "cluster", clusterDecision.ClusterName, "resourcePlacementStatus", rps)
 	}
 
 	return allRPS, rpsSetCondTypeCounter, nil
@@ -254,9 +254,10 @@ func setPlacementConditions(
 		}
 	}
 
-	klog.V(2).InfoS("Populated the placement conditions", "clusterResourcePlacement", klog.KObj(placementObj))
+	klog.V(2).InfoS("Populated the placement conditions", "placement", klog.KObj(placementObj))
 }
 
+// TODO: make this work with RP
 func (r *Reconciler) buildClusterResourceBindings(ctx context.Context, placementObj fleetv1beta1.PlacementObj, latestSchedulingPolicySnapshot fleetv1beta1.PolicySnapshotObj) (map[string]fleetv1beta1.BindingObj, error) {
 	// List all bindings derived from the CRP.
 	bindingList := &fleetv1beta1.ClusterResourceBindingList{}
@@ -280,7 +281,7 @@ func (r *Reconciler) buildClusterResourceBindings(ctx context.Context, placement
 
 		if len(bindings[i].Spec.TargetCluster) == 0 {
 			err := fmt.Errorf("targetCluster is empty on clusterResourceBinding %s", bindings[i].Name)
-			klog.ErrorS(controller.NewUnexpectedBehaviorError(err), "Found an invalid clusterResourceBinding and skipping it when building placement status", "clusterResourceBinding", klog.KObj(&bindings[i]), "clusterResourcePlacement", crpKObj)
+			klog.ErrorS(controller.NewUnexpectedBehaviorError(err), "Found an invalid clusterResourceBinding and skipping it when building placement status", "clusterResourceBinding", klog.KObj(&bindings[i]), "placement", crpKObj)
 			continue
 		}
 
@@ -294,6 +295,7 @@ func (r *Reconciler) buildClusterResourceBindings(ctx context.Context, placement
 	return res, nil
 }
 
+// TODO: make this work with RP
 // findClusterResourceSnapshotIndexForBindings finds the resource snapshot index for each binding.
 // It returns a map which maps the target cluster name to the resource snapshot index string.
 func (r *Reconciler) findClusterResourceSnapshotIndexForBindings(
@@ -306,7 +308,7 @@ func (r *Reconciler) findClusterResourceSnapshotIndexForBindings(
 	for targetCluster, binding := range bindingMap {
 		resourceSnapshotName := binding.GetBindingSpec().ResourceSnapshotName
 		if resourceSnapshotName == "" {
-			klog.InfoS("Empty resource snapshot name found in binding, controller might observe in-between state", "binding", klog.KObj(binding), "clusterResourcePlacement", crpKObj)
+			klog.InfoS("Empty resource snapshot name found in binding, controller might observe in-between state", "binding", klog.KObj(binding), "placement", crpKObj)
 			res[targetCluster] = ""
 			continue
 		}
@@ -314,11 +316,11 @@ func (r *Reconciler) findClusterResourceSnapshotIndexForBindings(
 		if err := r.Client.Get(ctx, types.NamespacedName{Name: resourceSnapshotName, Namespace: ""}, resourceSnapshot); err != nil {
 			if apierrors.IsNotFound(err) {
 				klog.InfoS("The resource snapshot specified in binding is not found, probably deleted due to revision history limit",
-					"resourceSnapshotName", resourceSnapshotName, "binding", klog.KObj(binding), "clusterResourcePlacement", crpKObj)
+					"resourceSnapshotName", resourceSnapshotName, "binding", klog.KObj(binding), "placement", crpKObj)
 				res[targetCluster] = ""
 				continue
 			}
-			klog.ErrorS(err, "Failed to get the cluster resource snapshot specified in binding", "resourceSnapshotName", resourceSnapshotName, "binding", klog.KObj(binding), "clusterResourcePlacement", crpKObj)
+			klog.ErrorS(err, "Failed to get the cluster resource snapshot specified in binding", "resourceSnapshotName", resourceSnapshotName, "binding", klog.KObj(binding), "placement", crpKObj)
 			return res, controller.NewAPIServerError(true, err)
 		}
 		res[targetCluster] = resourceSnapshot.GetLabels()[fleetv1beta1.ResourceIndexLabel]
@@ -374,7 +376,7 @@ func (r *Reconciler) setResourcePlacementStatusPerCluster(
 		// The binding uses an out of date resource snapshot, and the RolloutStarted condition is
 		// set to True, Unknown, or has become stale. Fleet might be observing an in-between state.
 		meta.SetStatusCondition(&status.Conditions, condition.RolloutStartedCondition.UnknownResourceConditionPerCluster(placementObj.GetGeneration()))
-		klog.V(5).InfoS("The cluster resource binding has a stale RolloutStarted condition, or it links to an out of date resource snapshot yet has the RolloutStarted condition set to True or Unknown status", "clusterResourceBinding", klog.KObj(binding), "clusterResourcePlacement", klog.KObj(placementObj))
+		klog.V(5).InfoS("The cluster resource binding has a stale RolloutStarted condition, or it links to an out of date resource snapshot yet has the RolloutStarted condition set to True or Unknown status", "clusterResourceBinding", klog.KObj(binding), "placement", klog.KObj(placementObj))
 		res[condition.RolloutStartedCondition] = metav1.ConditionUnknown
 		return res
 	default:
@@ -384,7 +386,7 @@ func (r *Reconciler) setResourcePlacementStatusPerCluster(
 	}
 }
 
-// setResourcePlacementStatusBasedOnBinding sets the cluster's resource placement status based on its corresponding binding status.
+// setResourcePlacementStatusBasedOnBinding sets the placement status based on its corresponding binding status.
 // It updates the status object in place and tracks the set status for each relevant condition type in setStatusByCondType map provided.
 func setResourcePlacementStatusBasedOnBinding(
 	placementObj fleetv1beta1.PlacementObj,
@@ -398,7 +400,7 @@ func setResourcePlacementStatusBasedOnBinding(
 		if !condition.IsConditionStatusTrue(bindingCond, binding.GetGeneration()) &&
 			!condition.IsConditionStatusFalse(bindingCond, binding.GetGeneration()) {
 			meta.SetStatusCondition(&status.Conditions, i.UnknownResourceConditionPerCluster(placementObj.GetGeneration()))
-			klog.V(5).InfoS("Find an unknown condition", "bindingCond", bindingCond, "clusterResourceBinding", klog.KObj(binding), "clusterResourcePlacement", klog.KObj(placementObj))
+			klog.V(5).InfoS("Find an unknown condition", "bindingCond", bindingCond, "clusterResourceBinding", klog.KObj(binding), "placement", klog.KObj(placementObj))
 			setStatusByCondType[i] = metav1.ConditionUnknown
 			break
 		}
