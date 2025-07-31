@@ -55,7 +55,7 @@ func DeletePolicySnapshots(ctx context.Context, k8Client client.Client, placemen
 		return NewAPIServerError(false, err)
 	}
 
-	klog.V(2).InfoS("Deleted policy snapshots", "policySnapshot	", policySnapshotKObj, "placement", placementKObj)
+	klog.V(2).InfoS("Deleted policy snapshots", "policySnapshot", policySnapshotKObj, "placement", placementKObj)
 	return nil
 }
 

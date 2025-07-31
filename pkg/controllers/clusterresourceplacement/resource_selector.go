@@ -497,6 +497,17 @@ func generateManifest(object *unstructured.Unstructured) (*workv1alpha1.Manifest
 	}, nil
 }
 
+// generateResourceContent creates a resource content from the unstructured obj.
+func generateResourceContent(object *unstructured.Unstructured) (*fleetv1beta1.ResourceContent, error) {
+	rawContent, err := generateRawContent(object)
+	if err != nil {
+		return nil, controller.NewUnexpectedBehaviorError(err)
+	}
+	return &fleetv1beta1.ResourceContent{
+		RawExtension: runtime.RawExtension{Raw: rawContent},
+	}, nil
+}
+
 // selectResourcesForPlacement selects the resources according to the placement resourceSelectors.
 // It also generates an array of resource content and resource identifier based on the selected resources.
 // It also returns the number of envelope configmaps so the CRP controller can have the right expectation of the number of work objects.
@@ -533,15 +544,4 @@ func (r *Reconciler) selectResourcesForPlacement(placementObj fleetv1beta1.Place
 		resourcesIDs[i] = ri
 	}
 	return envelopeObjCount, resources, resourcesIDs, nil
-}
-
-// generateResourceContent creates a resource content from the unstructured obj.
-func generateResourceContent(object *unstructured.Unstructured) (*fleetv1beta1.ResourceContent, error) {
-	rawContent, err := generateRawContent(object)
-	if err != nil {
-		return nil, controller.NewUnexpectedBehaviorError(err)
-	}
-	return &fleetv1beta1.ResourceContent{
-		RawExtension: runtime.RawExtension{Raw: rawContent},
-	}, nil
 }

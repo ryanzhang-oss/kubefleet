@@ -838,6 +838,9 @@ func handleResourceOverrideSnapshot(o client.Object, q workqueue.TypedRateLimiti
 	q.Add(reconcile.Request{
 		NamespacedName: types.NamespacedName{Name: snapshot.Spec.OverrideSpec.Placement.Name},
 	})
+	q.Add(reconcile.Request{
+		NamespacedName: types.NamespacedName{Namespace: snapshot.GetNamespace(), Name: snapshot.Spec.OverrideSpec.Placement.Name},
+	})
 }
 
 // handleResourceSnapshot parse the resourceBinding label and annotation and enqueue the CRP name associated with the resource resourceBinding

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,8 +48,8 @@ func TestDeletePolicySnapshots(t *testing.T) {
 	testCases := []struct {
 		name                       string
 		placementObj               fleetv1beta1.PlacementObj
-		existingSnapshots          []client.Object
-		expectedRemainingSnapshots []client.Object
+		existingSnapshots          []fleetv1beta1.PolicySnapshotObj
+		expectedRemainingSnapshots []fleetv1beta1.PolicySnapshotObj
 	}{
 		{
 			name: "delete cluster scoped policy snapshots",
@@ -57,7 +58,7 @@ func TestDeletePolicySnapshots(t *testing.T) {
 					Name: placementName,
 				},
 			},
-			existingSnapshots: []client.Object{
+			existingSnapshots: []fleetv1beta1.PolicySnapshotObj{
 				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: policySnapshotName,
@@ -75,7 +76,7 @@ func TestDeletePolicySnapshots(t *testing.T) {
 					},
 				},
 			},
-			expectedRemainingSnapshots: []client.Object{
+			expectedRemainingSnapshots: []fleetv1beta1.PolicySnapshotObj{
 				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "other-placement-0",
@@ -94,7 +95,7 @@ func TestDeletePolicySnapshots(t *testing.T) {
 					Namespace: policySnapshotNamespace,
 				},
 			},
-			existingSnapshots: []client.Object{
+			existingSnapshots: []fleetv1beta1.PolicySnapshotObj{
 				&fleetv1beta1.SchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      policySnapshotName,
@@ -114,7 +115,7 @@ func TestDeletePolicySnapshots(t *testing.T) {
 					},
 				},
 			},
-			expectedRemainingSnapshots: []client.Object{
+			expectedRemainingSnapshots: []fleetv1beta1.PolicySnapshotObj{
 				&fleetv1beta1.SchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "other-placement-0",
@@ -127,27 +128,188 @@ func TestDeletePolicySnapshots(t *testing.T) {
 			},
 		},
 		{
+			name: "delete multiple cluster scoped policy snapshots",
+			placementObj: &fleetv1beta1.ClusterResourcePlacement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: placementName,
+				},
+			},
+			existingSnapshots: []fleetv1beta1.PolicySnapshotObj{
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: policySnapshotName,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-placement-1",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-placement-2",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "other-placement-0",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "other-placement",
+						},
+					},
+				},
+			},
+			expectedRemainingSnapshots: []fleetv1beta1.PolicySnapshotObj{
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "other-placement-0",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "other-placement",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "delete multiple namespaced policy snapshots",
+			placementObj: &fleetv1beta1.ResourcePlacement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      placementName,
+					Namespace: policySnapshotNamespace,
+				},
+			},
+			existingSnapshots: []fleetv1beta1.PolicySnapshotObj{
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      policySnapshotName,
+						Namespace: policySnapshotNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-placement-1",
+						Namespace: policySnapshotNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-placement-2",
+						Namespace: policySnapshotNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "other-placement-0",
+						Namespace: "other-namespace",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "other-placement",
+						},
+					},
+				},
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "different-placement-0",
+						Namespace: policySnapshotNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "different-placement",
+						},
+					},
+				},
+			},
+			expectedRemainingSnapshots: []fleetv1beta1.PolicySnapshotObj{
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "other-placement-0",
+						Namespace: "other-namespace",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "other-placement",
+						},
+					},
+				},
+				&fleetv1beta1.SchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "different-placement-0",
+						Namespace: policySnapshotNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: "different-placement",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "delete all cluster scoped policy snapshots for placement",
+			placementObj: &fleetv1beta1.ClusterResourcePlacement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: placementName,
+				},
+			},
+			existingSnapshots: []fleetv1beta1.PolicySnapshotObj{
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: policySnapshotName,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-placement-1",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+			},
+			expectedRemainingSnapshots: nil,
+		},
+		{
 			name: "no policy snapshots to delete",
 			placementObj: &fleetv1beta1.ClusterResourcePlacement{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: placementName,
 				},
 			},
-			existingSnapshots:          []client.Object{},
-			expectedRemainingSnapshots: []client.Object{},
+			existingSnapshots:          []fleetv1beta1.PolicySnapshotObj{},
+			expectedRemainingSnapshots: nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
+
+			// Convert PolicySnapshotObj to client.Object for fake client
+			var existingObjects []client.Object
+			for _, snapshot := range tc.existingSnapshots {
+				existingObjects = append(existingObjects, snapshot.(client.Object))
+			}
+
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(tc.existingSnapshots...).
+				WithObjects(existingObjects...).
 				Build()
 
-			err := DeletePolicySnapshots(ctx, fakeClient, tc.placementObj)
-			if err != nil {
+			if err := DeletePolicySnapshots(ctx, fakeClient, tc.placementObj); err != nil {
 				t.Fatalf("DeletePolicySnapshots() = %v, want nil", err)
 			}
 
@@ -157,16 +319,40 @@ func TestDeletePolicySnapshots(t *testing.T) {
 				if err := fakeClient.List(ctx, &remainingSnapshots); err != nil {
 					t.Fatalf("Failed to list remaining snapshots: %v", err)
 				}
-				if len(remainingSnapshots.Items) != len(tc.expectedRemainingSnapshots) {
-					t.Errorf("Expected %d remaining snapshots, got %d", len(tc.expectedRemainingSnapshots), len(remainingSnapshots.Items))
+
+				// Convert items to PolicySnapshotObj slice for comparison
+				var gotSnapshots []fleetv1beta1.PolicySnapshotObj
+				for i := range remainingSnapshots.Items {
+					gotSnapshots = append(gotSnapshots, &remainingSnapshots.Items[i])
+				}
+
+				// Use cmp.Diff to compare with proper sorting and ignoring ResourceVersion
+				if diff := cmp.Diff(tc.expectedRemainingSnapshots, gotSnapshots,
+					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+					cmpopts.SortSlices(func(o1, o2 fleetv1beta1.PolicySnapshotObj) bool {
+						return o1.GetName() < o2.GetName()
+					})); diff != "" {
+					t.Errorf("DeletePolicySnapshots() mismatch (-want +got):\n%s", diff)
 				}
 			} else {
 				var remainingSnapshots fleetv1beta1.ClusterSchedulingPolicySnapshotList
 				if err := fakeClient.List(ctx, &remainingSnapshots); err != nil {
 					t.Fatalf("Failed to list remaining snapshots: %v", err)
 				}
-				if len(remainingSnapshots.Items) != len(tc.expectedRemainingSnapshots) {
-					t.Errorf("Expected %d remaining snapshots, got %d", len(tc.expectedRemainingSnapshots), len(remainingSnapshots.Items))
+
+				// Convert items to PolicySnapshotObj slice for comparison
+				var gotSnapshots []fleetv1beta1.PolicySnapshotObj
+				for i := range remainingSnapshots.Items {
+					gotSnapshots = append(gotSnapshots, &remainingSnapshots.Items[i])
+				}
+
+				// Use cmp.Diff to compare with proper sorting and ignoring ResourceVersion
+				if diff := cmp.Diff(tc.expectedRemainingSnapshots, gotSnapshots,
+					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion"),
+					cmpopts.SortSlices(func(o1, o2 fleetv1beta1.PolicySnapshotObj) bool {
+						return o1.GetName() < o2.GetName()
+					})); diff != "" {
+					t.Errorf("DeletePolicySnapshots() mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})

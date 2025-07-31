@@ -300,9 +300,6 @@ func (r *Reconciler) getOrCreateSchedulingPolicySnapshot(ctx context.Context, pl
 		latestPolicySnapshot.GetLabels()[fleetv1beta1.IsLatestSnapshotLabel] == strconv.FormatBool(true) {
 		// set the latest label to false first to make sure there is only one or none active policy snapshot
 		labels := latestPolicySnapshot.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
 		labels[fleetv1beta1.IsLatestSnapshotLabel] = strconv.FormatBool(false)
 		latestPolicySnapshot.SetLabels(labels)
 		if err := r.Client.Update(ctx, latestPolicySnapshot); err != nil {
@@ -493,9 +490,6 @@ func (r *Reconciler) getOrCreateResourceSnapshot(ctx context.Context, placement 
 		shouldCreateNewMasterResourceSnapshot = true
 		// set the latest label to false first to make sure there is only one or none active resource snapshot
 		labels := latestResourceSnapshot.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
 		labels[fleetv1beta1.IsLatestSnapshotLabel] = strconv.FormatBool(false)
 		latestResourceSnapshot.SetLabels(labels)
 		if err := r.Client.Update(ctx, latestResourceSnapshot); err != nil {
@@ -677,16 +671,12 @@ func (r *Reconciler) ensureLatestPolicySnapshot(ctx context.Context, placementOb
 	needUpdate := false
 	latestKObj := klog.KObj(latest)
 	labels := latest.GetLabels()
-	if labels == nil {
-		labels = make(map[string]string)
-	}
 	if labels[fleetv1beta1.IsLatestSnapshotLabel] != strconv.FormatBool(true) {
 		// When latestPolicySnapshot.Spec.PolicyHash == policyHash,
 		// It could happen when the controller just sets the latest label to false for the old snapshot, and fails to
 		// create a new policy snapshot.
 		// And then the customers revert back their policy to the old one again.
 		// In this case, the "latest" snapshot without isLatest label has the same policy hash as the current policy.
-
 		labels[fleetv1beta1.IsLatestSnapshotLabel] = strconv.FormatBool(true)
 		latest.SetLabels(labels)
 		needUpdate = true
@@ -698,9 +688,6 @@ func (r *Reconciler) ensureLatestPolicySnapshot(ctx context.Context, placementOb
 	}
 	if placementGeneration != placementObj.GetGeneration() {
 		annotations := latest.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
 		annotations[fleetv1beta1.CRPGenerationAnnotation] = strconv.FormatInt(placementObj.GetGeneration(), 10)
 		latest.SetAnnotations(annotations)
 		needUpdate = true
@@ -737,16 +724,13 @@ func (r *Reconciler) ensureLatestPolicySnapshot(ctx context.Context, placementOb
 // ensureLatestResourceSnapshot ensures the latest resourceSnapshot has the isLatest label, working with interface types.
 func (r *Reconciler) ensureLatestResourceSnapshot(ctx context.Context, latest fleetv1beta1.ResourceSnapshotObj) error {
 	labels := latest.GetLabels()
-	if labels != nil && labels[fleetv1beta1.IsLatestSnapshotLabel] == strconv.FormatBool(true) {
+	if labels[fleetv1beta1.IsLatestSnapshotLabel] == strconv.FormatBool(true) {
 		return nil
 	}
 	// It could happen when the controller just sets the latest label to false for the old snapshot, and fails to
 	// create a new resource snapshot.
 	// And then the customers revert back their resource to the old one again.
 	// In this case, the "latest" snapshot without isLatest label has the same resource hash as the current one.
-	if labels == nil {
-		labels = make(map[string]string)
-	}
 	labels[fleetv1beta1.IsLatestSnapshotLabel] = strconv.FormatBool(true)
 	latest.SetLabels(labels)
 	if err := r.Client.Update(ctx, latest); err != nil {
@@ -755,6 +739,94 @@ func (r *Reconciler) ensureLatestResourceSnapshot(ctx context.Context, latest fl
 	}
 	klog.V(2).InfoS("ResourceSnapshot's IsLatestSnapshotLabel was updated to true", "resourceSnapshot", klog.KObj(latest))
 	return nil
+}
+
+// lookupLatestSchedulingPolicySnapshot finds the latest snapshots and its policy index.
+// There will be only one active policy snapshot if exists.
+// It first checks whether there is an active policy snapshot.
+// If not, it finds the one whose policyIndex label is the largest.
+// The policy index will always start from 0.
+// Return error when 1) cannot list the snapshots 2) there are more than one active policy snapshots 3) snapshot has the
+// invalid label value.
+// 2 & 3 should never happen.
+func (r *Reconciler) lookupLatestSchedulingPolicySnapshot(ctx context.Context, placement fleetv1beta1.PlacementObj) (fleetv1beta1.PolicySnapshotObj, int, error) {
+	placementKey := types.NamespacedName{Name: placement.GetName(), Namespace: placement.GetNamespace()}
+	snapshotList, err := controller.FetchLatestPolicySnapshot(ctx, r.Client, placementKey)
+	if err != nil {
+		return nil, -1, err
+	}
+	placementKObj := klog.KObj(placement)
+	policySnapshotItems := snapshotList.GetPolicySnapshotObjs()
+	if len(policySnapshotItems) == 1 {
+		policyIndex, err := labels.ParsePolicyIndexFromLabel(policySnapshotItems[0])
+		if err != nil {
+			klog.ErrorS(err, "Failed to parse the policy index label", "placement", placementKObj, "policySnapshot", klog.KObj(policySnapshotItems[0]))
+			return nil, -1, controller.NewUnexpectedBehaviorError(err)
+		}
+		return policySnapshotItems[0], policyIndex, nil
+	} else if len(policySnapshotItems) > 1 {
+		// It means there are multiple active snapshots and should never happen.
+		err := fmt.Errorf("there are %d active schedulingPolicySnapshots owned by placement %v", len(policySnapshotItems), placementKey)
+		klog.ErrorS(err, "Invalid schedulingPolicySnapshots", "placement", placementKObj)
+		return nil, -1, controller.NewUnexpectedBehaviorError(err)
+	}
+	// When there are no active snapshots, find the one who has the largest policy index.
+	// It should be rare only when placement controller is crashed before creating the new active snapshot.
+	sortedList, err := r.listSortedSchedulingPolicySnapshots(ctx, placement)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	if len(sortedList.GetPolicySnapshotObjs()) == 0 {
+		// The policy index of the first snapshot will start from 0.
+		return nil, -1, nil
+	}
+	latestSnapshot := sortedList.GetPolicySnapshotObjs()[len(sortedList.GetPolicySnapshotObjs())-1]
+	policyIndex, err := labels.ParsePolicyIndexFromLabel(latestSnapshot)
+	if err != nil {
+		klog.ErrorS(err, "Failed to parse the policy index label", "placement", placementKObj, "policySnapshot", klog.KObj(latestSnapshot))
+		return nil, -1, controller.NewUnexpectedBehaviorError(err)
+	}
+	return latestSnapshot, policyIndex, nil
+}
+
+// listSortedSchedulingPolicySnapshots returns the policy snapshots sorted by the policy index.
+// Now works with both cluster-scoped and namespaced policy snapshots using interface types.
+func (r *Reconciler) listSortedSchedulingPolicySnapshots(ctx context.Context, placementObj fleetv1beta1.PlacementObj) (fleetv1beta1.PolicySnapshotList, error) {
+	placementKey := types.NamespacedName{
+		Namespace: placementObj.GetNamespace(),
+		Name:      placementObj.GetName(),
+	}
+
+	snapshotList, err := controller.ListPolicySnapshots(ctx, r.Client, placementKey)
+	if err != nil {
+		klog.ErrorS(err, "Failed to list all policySnapshots", "placement", klog.KObj(placementObj))
+		// placement controller needs a scheduling policy snapshot watcher to enqueue the placement request.
+		// So the snapshots should be read from cache.
+		return nil, controller.NewAPIServerError(true, err)
+	}
+
+	items := snapshotList.GetPolicySnapshotObjs()
+	var errs []error
+	sort.Slice(items, func(i, j int) bool {
+		ii, err := labels.ParsePolicyIndexFromLabel(items[i])
+		if err != nil {
+			klog.ErrorS(err, "Failed to parse the policy index label", "placement", klog.KObj(placementObj), "policySnapshot", klog.KObj(items[i]))
+			errs = append(errs, err)
+		}
+		ji, err := labels.ParsePolicyIndexFromLabel(items[j])
+		if err != nil {
+			klog.ErrorS(err, "Failed to parse the policy index label", "placement", klog.KObj(placementObj), "policySnapshot", klog.KObj(items[j]))
+			errs = append(errs, err)
+		}
+		return ii < ji
+	})
+
+	if len(errs) > 0 {
+		return nil, controller.NewUnexpectedBehaviorError(utilerrors.NewAggregate(errs))
+	}
+
+	return snapshotList, nil
 }
 
 // lookupLatestResourceSnapshot finds the latest snapshots and.
@@ -867,94 +939,6 @@ func (r *Reconciler) listSortedResourceSnapshots(ctx context.Context, placementO
 			return true
 		}
 		return iSubindex < jSubindex
-	})
-
-	if len(errs) > 0 {
-		return nil, controller.NewUnexpectedBehaviorError(utilerrors.NewAggregate(errs))
-	}
-
-	return snapshotList, nil
-}
-
-// lookupLatestSchedulingPolicySnapshot finds the latest snapshots and its policy index.
-// There will be only one active policy snapshot if exists.
-// It first checks whether there is an active policy snapshot.
-// If not, it finds the one whose policyIndex label is the largest.
-// The policy index will always start from 0.
-// Return error when 1) cannot list the snapshots 2) there are more than one active policy snapshots 3) snapshot has the
-// invalid label value.
-// 2 & 3 should never happen.
-func (r *Reconciler) lookupLatestSchedulingPolicySnapshot(ctx context.Context, placement fleetv1beta1.PlacementObj) (fleetv1beta1.PolicySnapshotObj, int, error) {
-	placementKey := types.NamespacedName{Name: placement.GetName(), Namespace: placement.GetNamespace()}
-	snapshotList, err := controller.FetchLatestPolicySnapshot(ctx, r.Client, placementKey)
-	if err != nil {
-		return nil, -1, err
-	}
-	placementKObj := klog.KObj(placement)
-	policySnapshotItems := snapshotList.GetPolicySnapshotObjs()
-	if len(policySnapshotItems) == 1 {
-		policyIndex, err := labels.ParsePolicyIndexFromLabel(policySnapshotItems[0])
-		if err != nil {
-			klog.ErrorS(err, "Failed to parse the policy index label", "placement", placementKObj, "policySnapshot", klog.KObj(policySnapshotItems[0]))
-			return nil, -1, controller.NewUnexpectedBehaviorError(err)
-		}
-		return policySnapshotItems[0], policyIndex, nil
-	} else if len(policySnapshotItems) > 1 {
-		// It means there are multiple active snapshots and should never happen.
-		err := fmt.Errorf("there are %d active schedulingPolicySnapshots owned by placement %v", len(policySnapshotItems), placementKey)
-		klog.ErrorS(err, "Invalid schedulingPolicySnapshots", "placement", placementKObj)
-		return nil, -1, controller.NewUnexpectedBehaviorError(err)
-	}
-	// When there are no active snapshots, find the one who has the largest policy index.
-	// It should be rare only when placement controller is crashed before creating the new active snapshot.
-	sortedList, err := r.listSortedSchedulingPolicySnapshots(ctx, placement)
-	if err != nil {
-		return nil, -1, err
-	}
-
-	if len(sortedList.GetPolicySnapshotObjs()) == 0 {
-		// The policy index of the first snapshot will start from 0.
-		return nil, -1, nil
-	}
-	latestSnapshot := sortedList.GetPolicySnapshotObjs()[len(sortedList.GetPolicySnapshotObjs())-1]
-	policyIndex, err := labels.ParsePolicyIndexFromLabel(latestSnapshot)
-	if err != nil {
-		klog.ErrorS(err, "Failed to parse the policy index label", "placement", placementKObj, "policySnapshot", klog.KObj(latestSnapshot))
-		return nil, -1, controller.NewUnexpectedBehaviorError(err)
-	}
-	return latestSnapshot, policyIndex, nil
-}
-
-// listSortedSchedulingPolicySnapshots returns the policy snapshots sorted by the policy index.
-// Now works with both cluster-scoped and namespaced policy snapshots using interface types.
-func (r *Reconciler) listSortedSchedulingPolicySnapshots(ctx context.Context, placementObj fleetv1beta1.PlacementObj) (fleetv1beta1.PolicySnapshotList, error) {
-	placementKey := types.NamespacedName{
-		Namespace: placementObj.GetNamespace(),
-		Name:      placementObj.GetName(),
-	}
-
-	snapshotList, err := controller.ListPolicySnapshots(ctx, r.Client, placementKey)
-	if err != nil {
-		klog.ErrorS(err, "Failed to list all policySnapshots", "placement", klog.KObj(placementObj))
-		// placement controller needs a scheduling policy snapshot watcher to enqueue the placement request.
-		// So the snapshots should be read from cache.
-		return nil, controller.NewAPIServerError(true, err)
-	}
-
-	items := snapshotList.GetPolicySnapshotObjs()
-	var errs []error
-	sort.Slice(items, func(i, j int) bool {
-		ii, err := labels.ParsePolicyIndexFromLabel(items[i])
-		if err != nil {
-			klog.ErrorS(err, "Failed to parse the policy index label", "placement", klog.KObj(placementObj), "policySnapshot", klog.KObj(items[i]))
-			errs = append(errs, err)
-		}
-		ji, err := labels.ParsePolicyIndexFromLabel(items[j])
-		if err != nil {
-			klog.ErrorS(err, "Failed to parse the policy index label", "placement", klog.KObj(placementObj), "policySnapshot", klog.KObj(items[j]))
-			errs = append(errs, err)
-		}
-		return ii < ji
 	})
 
 	if len(errs) > 0 {
