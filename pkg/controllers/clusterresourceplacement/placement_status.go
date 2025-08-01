@@ -182,7 +182,7 @@ func (r *Reconciler) appendScheduledResourcePlacementStatuses(
 		// Fleet will reset unused conditions.
 		for i := condition.RolloutStartedCondition; i < condition.TotalCondition; i++ {
 			if _, ok := setStatusByCondType[i]; !ok {
-				meta.RemoveStatusCondition(&rps.Conditions, string(i.ResourcePlacementConditionType()))
+				meta.RemoveStatusCondition(&rps.Conditions, string(i.PlacementConditionType()))
 			}
 		}
 		// The allRPS slice has been pre-allocated, so the append call will never produce a new
@@ -357,7 +357,7 @@ func (r *Reconciler) setResourcePlacementStatusPerCluster(
 		// The binding uses an out of date resource snapshot and rollout controller has reported
 		// that the rollout is being blocked (the RolloutStarted condition is of the False status).
 		cond := metav1.Condition{
-			Type:               string(condition.RolloutStartedCondition.ResourcePlacementConditionType()),
+			Type:               string(condition.RolloutStartedCondition.PlacementConditionType()),
 			Status:             metav1.ConditionFalse,
 			ObservedGeneration: crp.Generation,
 			Reason:             condition.RolloutNotStartedYetReason,
@@ -420,7 +420,7 @@ func setResourcePlacementStatusBasedOnBinding(
 		}
 
 		cond := metav1.Condition{
-			Type:               string(i.ResourcePlacementConditionType()),
+			Type:               string(i.PlacementConditionType()),
 			Status:             bindingCond.Status,
 			ObservedGeneration: crp.Generation,
 			Reason:             bindingCond.Reason,
