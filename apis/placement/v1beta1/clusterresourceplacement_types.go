@@ -1352,7 +1352,7 @@ const (
 	// - "Unknown" means we haven't finished creating work yet.
 	PerClusterWorkSynchronizedConditionType PerClusterPlacementConditionType = "WorkSynchronized"
 
-	// PerClusterAppliedConditionType indicates whether the selected member cluster has applied the selected resources on the selected member cluster.
+	// PerClusterAppliedConditionType indicates whether the selected member cluster has applied the selected resources.
 	// Its condition status can be one of the following:
 	// - "True" means all the selected resources are successfully applied to the target cluster.
 	// - "False" means some of them have failed.
