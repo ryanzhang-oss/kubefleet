@@ -183,6 +183,29 @@ func TestResolvePlacementFromKey(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:         "mixed setup - same name different scopes with cluster resource placement",
+			placementKey: queue.PlacementKey("test-crp"),
+			objects: []client.Object{
+				&fleetv1beta1.ClusterResourcePlacement{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-crp",
+					},
+				},
+				&fleetv1beta1.ResourcePlacement{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-crp",
+						Namespace: "test-ns",
+					},
+				},
+			},
+			wantPlacement: &fleetv1beta1.ClusterResourcePlacement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-crp",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

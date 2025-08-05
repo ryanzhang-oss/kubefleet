@@ -745,6 +745,14 @@ func TestListPolicySnapshots(t *testing.T) {
 				},
 				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-placement-2",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: placementName,
+						},
+					},
+				},
+				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "other-placement-0",
 						Labels: map[string]string{
 							fleetv1beta1.PlacementTrackingLabel: "other-placement",
@@ -771,7 +779,7 @@ func TestListPolicySnapshots(t *testing.T) {
 					},
 				},
 			},
-			expectedSnapshots: 2, // Should only return cluster-scoped ones for cluster-scoped placement
+			expectedSnapshots: 3, // Should only return cluster-scoped ones for cluster-scoped placement
 		},
 		{
 			name: "list namespaced policy snapshots",
@@ -848,14 +856,6 @@ func TestListPolicySnapshots(t *testing.T) {
 				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-placement-0",
-						Labels: map[string]string{
-							fleetv1beta1.PlacementTrackingLabel: placementName,
-						},
-					},
-				},
-				&fleetv1beta1.ClusterSchedulingPolicySnapshot{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-placement-1",
 						Labels: map[string]string{
 							fleetv1beta1.PlacementTrackingLabel: placementName,
 						},

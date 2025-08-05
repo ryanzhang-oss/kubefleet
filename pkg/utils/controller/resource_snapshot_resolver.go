@@ -41,7 +41,7 @@ func FetchAllResourceSnapshotsAlongWithMaster(ctx context.Context, k8Client clie
 	snapshotCount, err := strconv.Atoi(countAnnotation)
 	if err != nil || snapshotCount < 1 {
 		return nil, NewUnexpectedBehaviorError(fmt.Errorf(
-			"master resource snapshot %s has an invalid snapshot count %d or err %w", masterResourceSnapshot.GetName(), snapshotCount, err))
+			"master resource snapshot %s for placement %s has an invalid snapshot count %d or err %w", masterResourceSnapshot.GetName(), placementKey, snapshotCount, err))
 	}
 
 	if snapshotCount > 1 {
@@ -72,8 +72,8 @@ func FetchAllResourceSnapshotsAlongWithMaster(ctx context.Context, k8Client clie
 
 	// check if all the resource snapshots are created since that may take a while but the rollout controller may update the resource binding on master snapshot creation
 	if len(resourceSnapshots) != snapshotCount {
-		misMatchErr := fmt.Errorf("%w: resource snapshots are still being created for the masterResourceSnapshot %s, total snapshot in the index group = %d, num Of existing snapshot in the group= %d",
-			errResourceNotFullyCreated, masterResourceSnapshot.GetName(), snapshotCount, len(resourceSnapshots))
+		misMatchErr := fmt.Errorf("%w: resource snapshots are still being created for the masterResourceSnapshot %s, total snapshot in the index group = %d, num Of existing snapshot in the group= %d, placement = %s",
+			errResourceNotFullyCreated, masterResourceSnapshot.GetName(), snapshotCount, len(resourceSnapshots), placementKey)
 		klog.ErrorS(misMatchErr, "Resource snapshot are not ready", "placement", placementKey)
 		return nil, NewExpectedBehaviorError(misMatchErr)
 	}

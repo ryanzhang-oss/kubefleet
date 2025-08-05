@@ -1703,6 +1703,7 @@ func TestDeleteResourceSnapshots(t *testing.T) {
 					},
 				},
 				// Namespaced snapshots with same placement name (should NOT be deleted)
+				// TODO: find a way to test this
 				&fleetv1beta1.ResourceSnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-namespaced-snapshot",
@@ -1724,6 +1725,7 @@ func TestDeleteResourceSnapshots(t *testing.T) {
 			},
 			objects: []client.Object{
 				// Cluster-scoped snapshots with same placement name (should NOT be deleted)
+				// TODO: find a way to test this
 				&fleetv1beta1.ClusterResourceSnapshot{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-cluster-snapshot",
