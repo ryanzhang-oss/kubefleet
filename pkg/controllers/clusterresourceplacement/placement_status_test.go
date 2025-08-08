@@ -6051,10 +6051,9 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 
 	resourcePlacementAvailableConditions := []metav1.Condition{
 		{
-			Status:             metav1.ConditionTrue,
-			Type:               string(fleetv1beta1.ResourcePlacementScheduledConditionType),
-			Reason:             "Scheduled",
-			ObservedGeneration: rpGeneration,
+			Status: metav1.ConditionTrue,
+			Type:   string(fleetv1beta1.ResourcePlacementScheduledConditionType),
+			Reason: "Scheduled",
 		},
 		{
 			Status:             metav1.ConditionTrue,
@@ -6932,7 +6931,7 @@ func TestBuildPerClusterPlacementStatusMap(t *testing.T) {
 	}
 }
 
-func TestBuildBindingMap(t *testing.T) {
+func TestBuildClusterToBindingMap(t *testing.T) {
 	policySnapshotName := "policy-2"
 	testRPName := "test-rp"
 	testRPNamespace := "test-namespace"
@@ -7242,6 +7241,97 @@ func TestBuildBindingMap(t *testing.T) {
 			},
 			want: map[string]fleetv1beta1.BindingObj{},
 		},
+		{
+			name: "mixed scoped: matched bindings",
+			placementObj: &fleetv1beta1.ResourcePlacement{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      testRPName,
+					Namespace: testRPNamespace,
+				},
+			},
+			resourceBindings: []fleetv1beta1.ResourceBinding{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "binding-1",
+						Namespace: testRPNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "binding-2",
+						Namespace: testRPNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-2",
+					},
+				},
+			},
+			clusterBindings: []fleetv1beta1.ClusterResourceBinding{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "binding-1",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testCRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "binding-2",
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testCRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-2",
+					},
+				},
+			},
+			want: map[string]fleetv1beta1.BindingObj{
+				"member-1": &fleetv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "binding-1",
+						Namespace: testRPNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-1",
+					},
+				},
+				"member-2": &fleetv1beta1.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "binding-2",
+						Namespace: testRPNamespace,
+						Labels: map[string]string{
+							fleetv1beta1.PlacementTrackingLabel: testRPName,
+						},
+					},
+					Spec: fleetv1beta1.ResourceBindingSpec{
+						SchedulingPolicySnapshotName: policySnapshotName,
+						TargetCluster:                "member-2",
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -7272,10 +7362,10 @@ func TestBuildBindingMap(t *testing.T) {
 			}
 			got, err := r.buildClusterToBindingMap(ctx, tc.placementObj, &policySnapshot)
 			if err != nil {
-				t.Fatalf("buildBindingMap() got err %v, want nil", err)
+				t.Fatalf("buildClusterToBindingMap() got err %v, want nil", err)
 			}
 			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion")); diff != "" {
-				t.Errorf("buildBindingMap() status mismatch (-want, +got):\n%s", diff)
+				t.Errorf("buildClusterToBindingMap() status mismatch (-want, +got):\n%s", diff)
 			}
 		})
 	}
@@ -9785,7 +9875,7 @@ func TestGetPlacementConditionType(t *testing.T) {
 	}
 }
 
-func TestGetPlacementConditionByStatus(t *testing.T) {
+func TestGeneratePlacementConditionByStatus(t *testing.T) {
 	tests := []struct {
 		name         string
 		placement    fleetv1beta1.PlacementObj

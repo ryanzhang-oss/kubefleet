@@ -32,7 +32,7 @@ import (
 	"github.com/kubefleet-dev/kubefleet/pkg/scheduler/queue"
 )
 
-func TestResolvePlacementFromKey(t *testing.T) {
+func TestFetchPlacementFromKey(t *testing.T) {
 	scheme := runtime.NewScheme()
 	if err := fleetv1beta1.AddToScheme(scheme); err != nil {
 		t.Fatalf("Failed to add scheme: %v", err)
