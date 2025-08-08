@@ -1704,8 +1704,8 @@ func (in *PlacementStatus) DeepCopyInto(out *PlacementStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.PlacementStatuses != nil {
-		in, out := &in.PlacementStatuses, &out.PlacementStatuses
+	if in.PerClusterPlacementStatuses != nil {
+		in, out := &in.PerClusterPlacementStatuses, &out.PerClusterPlacementStatuses
 		*out = make([]PerClusterPlacementStatus, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
