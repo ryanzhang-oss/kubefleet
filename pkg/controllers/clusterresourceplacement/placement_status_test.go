@@ -6093,7 +6093,7 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 		{
 			Status:             metav1.ConditionTrue,
 			Type:               string(fleetv1beta1.PerClusterScheduledConditionType),
-			Reason:             condition.ResourceScheduleSucceededReason,
+			Reason:             "Scheduled", //copy from policySnapshot condition in this test
 			ObservedGeneration: rpGeneration,
 		},
 		{
@@ -6225,7 +6225,7 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "namespace-scoped resource placement scheduling succeeded",
+			name: "namespace-scoped resource placement scheduling succeeded but no binding",
 			latestPolicySnapshot: &fleetv1beta1.SchedulingPolicySnapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      fmt.Sprintf(fleetv1beta1.PolicySnapshotNameFmt, testRPName, 0),
