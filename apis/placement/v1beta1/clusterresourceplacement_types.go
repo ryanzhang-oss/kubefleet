@@ -1295,16 +1295,14 @@ const (
 type ResourcePlacementConditionType string
 
 const (
-	// ResourcePlacementScheduledConditionType indicates whether we have successfully scheduled the
-	// ResourcePlacemen.
+	// ResourcePlacementScheduledConditionType indicates whether we have successfully scheduled the ResourcePlacement.
 	// Its condition status can be one of the following:
 	// - "True" means we have successfully scheduled the resources to fully satisfy the placement requirement.
 	// - "False" means we didn't fully satisfy the placement requirement. We will fill the Reason field.
 	// - "Unknown" means we don't have a scheduling decision yet.
 	ResourcePlacementScheduledConditionType ResourcePlacementConditionType = "ResourcePlacementScheduled"
 
-	// ResourcePlacementRolloutStartedConditionType indicates whether the selected resources start rolling out or
-	// not.
+	// ResourcePlacementRolloutStartedConditionType indicates whether the selected resources start rolling out or not.
 	// Its condition status can be one of the following:
 	// - "True" means the selected resources successfully start rolling out in all scheduled clusters.
 	// - "False" means the selected resources have not been rolled out in all scheduled clusters yet.

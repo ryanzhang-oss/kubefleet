@@ -151,7 +151,7 @@ func (c ResourceCondition) ResourceBindingConditionType() fleetv1beta1.ResourceB
 	}[c]
 }
 
-// ClusterResourcePlacementConditionType returns the CRP condition type used by CRP.
+// ClusterResourcePlacementConditionType returns the CRP condition type used by CRP controller.
 func (c ResourceCondition) ClusterResourcePlacementConditionType() fleetv1beta1.ClusterResourcePlacementConditionType {
 	return []fleetv1beta1.ClusterResourcePlacementConditionType{
 		fleetv1beta1.ClusterResourcePlacementRolloutStartedConditionType,
@@ -163,7 +163,7 @@ func (c ResourceCondition) ClusterResourcePlacementConditionType() fleetv1beta1.
 	}[c]
 }
 
-// ResourcePlacementConditionType returns the CRP condition type used by CRP.
+// ResourcePlacementConditionType returns the RP condition type used by RP controller.
 func (c ResourceCondition) ResourcePlacementConditionType() fleetv1beta1.ResourcePlacementConditionType {
 	return []fleetv1beta1.ResourcePlacementConditionType{
 		fleetv1beta1.ResourcePlacementRolloutStartedConditionType,

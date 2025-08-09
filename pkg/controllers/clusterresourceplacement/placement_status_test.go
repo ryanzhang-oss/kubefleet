@@ -6021,7 +6021,7 @@ func TestSetPlacementStatusForClusterResourcePlacement(t *testing.T) {
 }
 
 func TestSetResourcePlacementStatus(t *testing.T) {
-	rpGeneration := int64(25)
+	rpGeneration := int64(5)
 	testRPName := "test-rp"
 	testRPNamespace := "test-namespace"
 
@@ -6051,9 +6051,10 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 
 	resourcePlacementAvailableConditions := []metav1.Condition{
 		{
-			Status: metav1.ConditionTrue,
-			Type:   string(fleetv1beta1.ResourcePlacementScheduledConditionType),
-			Reason: "Scheduled",
+			Status:             metav1.ConditionTrue,
+			Type:               string(fleetv1beta1.ResourcePlacementScheduledConditionType),
+			Reason:             "Scheduled",
+			ObservedGeneration: rpGeneration,
 		},
 		{
 			Status:             metav1.ConditionTrue,
@@ -6164,7 +6165,6 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 	tests := []struct {
 		name                   string
 		rpStatus               fleetv1beta1.PlacementStatus
-		policy                 *fleetv1beta1.PlacementPolicy
 		strategy               fleetv1beta1.RolloutStrategy
 		latestPolicySnapshot   *fleetv1beta1.SchedulingPolicySnapshot
 		latestResourceSnapshot *fleetv1beta1.ResourceSnapshot
@@ -6510,7 +6510,7 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 			want: true,
 			wantStatus: &fleetv1beta1.PlacementStatus{
 				SelectedResources:     selectedResources,
-				ObservedResourceIndex: "0",
+				ObservedResourceIndex: "0", //latest resource snapshot index
 				Conditions:            resourcePlacementAvailableConditions,
 				PerClusterPlacementStatuses: []fleetv1beta1.PerClusterPlacementStatus{
 					{
@@ -6621,7 +6621,7 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 			want: true,
 			wantStatus: &fleetv1beta1.PlacementStatus{
 				SelectedResources:     selectedResources,
-				ObservedResourceIndex: "0",
+				ObservedResourceIndex: "0", //latest resource snapshot index
 				Conditions:            resourcePlacementAvailableConditions,
 				PerClusterPlacementStatuses: []fleetv1beta1.PerClusterPlacementStatus{
 					{
@@ -6665,7 +6665,6 @@ func TestSetResourcePlacementStatus(t *testing.T) {
 							},
 						},
 					},
-					Policy:   tc.policy,
 					Strategy: tc.strategy,
 				},
 				Status: tc.rpStatus,
