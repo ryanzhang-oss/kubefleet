@@ -17,6 +17,9 @@ limitations under the License.
 package framework
 
 import (
+	"fmt"
+	"strings"
+
 	clusterv1beta1 "github.com/kubefleet-dev/kubefleet/apis/cluster/v1beta1"
 )
 
@@ -110,4 +113,12 @@ func (sc ScoredClusters) Less(i, j int) bool {
 // Swap swaps two ScoredClusters in the list; it implemented sort.Interface.Swap().
 func (sc ScoredClusters) Swap(i, j int) {
 	sc[i], sc[j] = sc[j], sc[i]
+}
+
+func (sc ScoredClusters) String() string {
+	names := make([]string, 0, len(sc))
+	for _, s := range sc {
+		names = append(names, fmt.Sprintf("Cluster{Name: %s, Score: %v}", s.Cluster.Name, s.Score))
+	}
+	return fmt.Sprintf("ScoredClusters{%s}", strings.Join(names, ", "))
 }
