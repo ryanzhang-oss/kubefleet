@@ -72,6 +72,9 @@ const (
 	// The array length limit of the cluster decision array in the scheduling policy snapshot
 	// status API.
 	clustersDecisionArrayLengthLimitInAPI = 1000
+
+	// maxClusterInfoForDebugging controls the maximum number of cluster information entries to include in the scheduler debugging output
+	maxClusterInfoForDebugging = 32
 )
 
 // Handle is an interface which allows plugins to access some shared structs (e.g., client, manager)
@@ -462,7 +465,7 @@ func (f *framework) runSchedulingCycleForPickAllPlacementType(
 	//   longer picked in the current run.
 	//
 	// Fields in the returned bindings are fulfilled and/or refreshed as applicable.
-	klog.V(2).InfoS("Cross-referencing bindings with picked clusters", "policySnapshot", policyRef)
+	klog.V(2).InfoS("Cross-referencing bindings with picked clusters", "policySnapshot", policyRef, "scoredClusters", scored, "filteredClusters", filtered)
 	toCreate, toDelete, toPatch, err := crossReferencePickedClustersAndDeDupBindings(placementKey, policy, scored, unscheduled, obsolete)
 	if err != nil {
 		klog.ErrorS(err, "Failed to cross-reference bindings with picked clusters", "policySnapshot", policyRef)
@@ -608,6 +611,9 @@ type filteredClusterWithStatus struct {
 type filteredClusterWithStatusList []*filteredClusterWithStatus
 
 func (cs filteredClusterWithStatusList) String() string {
+	if len(cs) > maxClusterInfoForDebugging {
+		cs = cs[:maxClusterInfoForDebugging] // limit the number of entries to print
+	}
 	filteredClusters := make([]string, 0, len(cs))
 	for _, fc := range cs {
 		filteredClusters = append(filteredClusters, fmt.Sprintf("{cluster: %s, status: %s}", fc.cluster.Name, fc.status))

@@ -614,7 +614,9 @@ var _ = Describe("placing wrapped resources using a CRP", Ordered, func() {
 				workName := fmt.Sprintf(placementv1beta1.FirstWorkNameFmt, crpName)
 				Eventually(func() error {
 					work := placementv1beta1.Work{}
-					Expect(hubClient.Get(ctx, types.NamespacedName{Name: workName, Namespace: namespaceName}, &work)).Should(Succeed(), "Failed to get the work")
+					if err := hubClient.Get(ctx, types.NamespacedName{Name: workName, Namespace: namespaceName}, &work); err != nil {
+						return err
+					}
 					if work.Status.ManifestConditions != nil {
 						work.Status.ManifestConditions = nil
 					} else {

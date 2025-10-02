@@ -116,6 +116,10 @@ func (sc ScoredClusters) Swap(i, j int) {
 }
 
 func (sc ScoredClusters) String() string {
+	if len(sc) > maxClusterInfoForDebugging {
+		sc = sc[:maxClusterInfoForDebugging] // limit the number of entries to print
+	}
+
 	names := make([]string, 0, len(sc))
 	for _, s := range sc {
 		names = append(names, fmt.Sprintf("Cluster{Name: %s, Score: %v}", s.Cluster.Name, s.Score))
