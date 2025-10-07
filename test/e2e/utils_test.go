@@ -330,7 +330,7 @@ func checkIfAzurePropertyProviderIsWorking() {
 				return fmt.Errorf("member cluster status conditions diff (-got, +want):\n%s", diff)
 			}
 			return nil
-		}, longEventuallyDuration, eventuallyInterval).Should(Succeed(), "Failed to confirm that Azure property provider is up and running on cluster", memberCluster)
+		}, longEventuallyDuration, eventuallyInterval).Should(Succeed(), "Failed to confirm that Azure property provider is up and running on cluster", memberCluster.ClusterName)
 	}
 }
 
@@ -722,7 +722,17 @@ func createWorkResources() {
 
 func createNamespace() {
 	ns := appNamespace()
-	Expect(hubClient.Create(ctx, &ns)).To(Succeed(), "Failed to create namespace %s", ns.Name)
+	Eventually(func() error {
+		err := hubClient.Create(ctx, &ns)
+		if k8serrors.IsAlreadyExists(err) {
+			err = hubClient.Get(ctx, types.NamespacedName{Name: ns.Name}, &ns)
+			if err != nil {
+				return fmt.Errorf("failed to get the namespace %s, err is %+w", ns.Name, err)
+			}
+			return fmt.Errorf("namespace %s already exists, delete time is %v", ns.Name, ns.GetDeletionTimestamp())
+		}
+		return err
+	}, eventuallyDuration, eventuallyInterval).Should(Succeed(), "Failed to create namespace %s", ns.Name)
 }
 
 func createConfigMap() {
