@@ -721,8 +721,9 @@ func createWorkResources() {
 }
 
 func createNamespace() {
+	var ns corev1.Namespace
 	Eventually(func() error {
-		ns := appNamespace()
+		ns = appNamespace()
 		err := hubClient.Create(ctx, &ns)
 		if k8serrors.IsAlreadyExists(err) {
 			err = hubClient.Get(ctx, types.NamespacedName{Name: ns.Name}, &ns)
