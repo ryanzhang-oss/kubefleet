@@ -118,7 +118,7 @@ var _ = Describe("Test ClusterProfile Controller", func() {
 		}, eventuallyTimeout, interval).Should(BeTrue(), "clusterProfile is not created")
 	})
 
-	It("Should recreate a clusterProfile when it is deleted by the user", func() {
+	It("Should recreate a clusterProfile when it is deleted by the user but properties should not show if MC property collection is not succeeded", func() {
 		By("Mark the member cluster as joined")
 		mc.Status.Conditions = []metav1.Condition{
 			{

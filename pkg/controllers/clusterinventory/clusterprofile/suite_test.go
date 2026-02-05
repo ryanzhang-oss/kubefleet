@@ -97,7 +97,7 @@ var _ = BeforeSuite(func() {
 		Metrics: server.Options{
 			BindAddress: "0",
 		},
-		Logger: zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true), zap.Level(zapcore.Level(-5))),
+		Logger: logger,
 	})
 	Expect(err).Should(Succeed())
 	err = (&Reconciler{
