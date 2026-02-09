@@ -3,11 +3,11 @@ name: Release Images
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v1.0.0)'
+        description: "Release tag (e.g., v1.0.0)"
         required: true
         type: string
 
@@ -20,7 +20,7 @@ env:
   HUB_AGENT_IMAGE_NAME: hub-agent
   MEMBER_AGENT_IMAGE_NAME: member-agent
   REFRESH_TOKEN_IMAGE_NAME: refresh-token
-  GO_VERSION: '1.24.12'
+  GO_VERSION: "1.24.12"
 
 jobs:
   export-registry:
@@ -31,12 +31,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6.0.2
-        
+
       - id: export
         run: |
           # registry must be in lowercase
           echo "registry=$(echo "${{ env.REGISTRY }}/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-          
+
           # Extract tag from github ref or workflow input
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ inputs.tag }}"
@@ -77,6 +77,10 @@ jobs:
         run: |
           make push
 
+      - name: Build and push Helm charts
+        run: |
+          make helm-push HELM_CHART_VERSION=${{ env.TAG }}
+
       - name: Verify images
         run: |
           echo "✅ Published images:"
@@ -84,4 +88,8 @@ jobs:
           echo "  - ${{ env.REGISTRY }}/${{ env.MEMBER_AGENT_IMAGE_NAME }}:${{ env.TAG }}"
           echo "  - ${{ env.REGISTRY }}/${{ env.REFRESH_TOKEN_IMAGE_NAME }}:${{ env.TAG }}"
           echo ""
-          echo "📦 Images are now public!"
+          echo "📦 Published Helm charts:"
+          echo "  - oci://${{ env.REGISTRY }}/hub-agent:${{ env.TAG }}"
+          echo "  - oci://${{ env.REGISTRY }}/member-agent:${{ env.TAG }}"
+          echo ""
+          echo "📦 Images and charts are now public!"

@@ -229,12 +229,14 @@ push: ## Build and push all Docker images
 
 
 # Fleet hub and member Agents are packaged and pushed to OCI registry as Helm charts
+HELM_CHART_VERSION ?= $(TAG)
+
 .PHONY: helm-push
-helm-push:
-	helm package charts/member-agent/ --version $(MEMBER_AGENT_HELMCHART_VERSION)
-	helm package charts/hub-agent/ --version $(HUB_AGENT_HELMCHART_VERSION)
-	helm push $(MEMBER_AGENT_HELMCHART_NAME)-$(MEMBER_AGENT_HELMCHART_VERSION).tgz oci://$(REGISTRY)
-	helm push $(HUB_AGENT_HELMCHART_NAME)-$(HUB_AGENT_HELMCHART_VERSION).tgz oci://$(REGISTRY)
+helm-push: ## Build and push Helm charts
+	helm package charts/member-agent/ --version $(HELM_CHART_VERSION)
+	helm package charts/hub-agent/ --version $(HELM_CHART_VERSION)
+	helm push member-agent-$(HELM_CHART_VERSION).tgz oci://$(REGISTRY)
+	helm push hub-agent-$(HELM_CHART_VERSION).tgz oci://$(REGISTRY)
 	
 # By default, docker buildx create will pull image moby/buildkit:buildx-stable-1 and hit the too many requests error
 .PHONY: docker-buildx-builder
