@@ -77,9 +77,12 @@ jobs:
         run: |
           make push
 
-      - name: Build and push Helm charts
+      - name: Push Helm charts to OCI registry
+        env:
+          HELM_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          make helm-push HELM_CHART_VERSION=${{ env.TAG }}
+          echo "${HELM_REGISTRY_PASSWORD}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          make helm-push
 
       - name: Verify images
         run: |
