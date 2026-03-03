@@ -1,0 +1,13 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.clusterproperties.kubernetes-fleet.io
+spec:
+  group: clusterproperties.kubernetes-fleet.io
+  version: v1beta1
+  service:
+    name: properties-api-server
+    namespace: fleet-system
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  insecureSkipTLSVerify: true

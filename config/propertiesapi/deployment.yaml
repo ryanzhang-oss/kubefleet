@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: properties-api-server
+  namespace: fleet-system
+  labels:
+    app: properties-api-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: properties-api-server
+  template:
+    metadata:
+      labels:
+        app: properties-api-server
+    spec:
+      serviceAccountName: properties-api-server-sa
+      containers:
+        - name: properties-api-server
+          image: ghcr.io/properties-api-server:latest
+          args:
+            - "--secure-port=6443"
+          ports:
+            - containerPort: 6443
+              name: https
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 6443
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 6443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

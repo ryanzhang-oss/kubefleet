@@ -6,10 +6,12 @@ endif
 HUB_AGENT_IMAGE_VERSION ?= $(TAG)
 MEMBER_AGENT_IMAGE_VERSION ?= $(TAG)
 REFRESH_TOKEN_IMAGE_VERSION ?= $(TAG)
+PROPERTIES_API_IMAGE_VERSION ?= $(TAG)
 
 HUB_AGENT_IMAGE_NAME ?= hub-agent
 MEMBER_AGENT_IMAGE_NAME ?= member-agent
 REFRESH_TOKEN_IMAGE_NAME := refresh-token
+PROPERTIES_API_IMAGE_NAME ?= properties-api-server
 
 TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
@@ -211,6 +213,7 @@ generate: $(CONTROLLER_GEN) ## Generate deep copy methods
 build: generate fmt vet ## Build agent binaries
 	go build -o bin/hubagent cmd/hubagent/main.go
 	go build -o bin/memberagent cmd/memberagent/main.go
+	go build -o bin/properties-api-server cmd/propertiesapi/main.go
 
 .PHONY: run-hubagent
 run-hubagent: manifests generate fmt vet ## Run hub-agent from your host
@@ -219,6 +222,10 @@ run-hubagent: manifests generate fmt vet ## Run hub-agent from your host
 .PHONY: run-memberagent
 run-memberagent: manifests generate fmt vet ## Run member-agent from your host
 	go run ./cmd/memberagent/main.go
+
+.PHONY: run-properties-api-server
+run-properties-api-server: manifests generate fmt vet ## Run properties-api-server from your host
+	go run ./cmd/propertiesapi/main.go
 
 ## --------------------------------------
 ## Images
@@ -231,7 +238,7 @@ BUILDKIT_VERSION ?= v0.18.1
 
 .PHONY: push
 push: ## Build and push all Docker images
-	$(MAKE) OUTPUT_TYPE="type=registry" docker-build-hub-agent docker-build-member-agent docker-build-refresh-token
+	$(MAKE) OUTPUT_TYPE="type=registry" docker-build-hub-agent docker-build-member-agent docker-build-refresh-token docker-build-properties-api-server
 
 .PHONY: helm-push
 helm-push: ## Package and push Helm charts to OCI registry
@@ -299,6 +306,18 @@ docker-build-refresh-token: docker-buildx-builder ## Build refresh-token image
 		--progress=$(BUILDKIT_PROGRESS_TYPE) \
 		--build-arg GOARCH=$(TARGET_ARCH) \
 		--build-arg GOOS=${TARGET_OS} .
+
+.PHONY: docker-build-properties-api-server
+docker-build-properties-api-server: docker-buildx-builder ## Build properties-api-server image
+	docker buildx build \
+		--file docker/$(PROPERTIES_API_IMAGE_NAME).Dockerfile \
+		--output=$(OUTPUT_TYPE) \
+		--platform=$(TARGET_OS)/$(TARGET_ARCH) \
+		--pull \
+		--tag $(REGISTRY)/$(PROPERTIES_API_IMAGE_NAME):$(PROPERTIES_API_IMAGE_VERSION) \
+		--progress=$(BUILDKIT_PROGRESS_TYPE) \
+		--build-arg GOARCH=$(TARGET_ARCH) \
+		--build-arg GOOS=$(TARGET_OS) .
 
 ## -----------------------------------
 ## Cleanup
